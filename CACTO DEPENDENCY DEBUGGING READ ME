@@ -1,0 +1,146 @@
+#This is a helper document I'm writing to assist in debugging dependency installations for the cacto-sl code.
+#Nadim Kanazi
+#June 2024
+________________________________________________________________________________________________
+
+The general approach was this for starters:
+
+1. Clone the cacto repo (https://github.com/gianluigigrandesso/cacto)
+2. Follow the instructions below to run the code. These instructions were provided by ELisa Alboni:
+  - create and activate a new virtual environment (python3.10.12) via conda
+  - python3 -m pip install --upgrade pip
+  - python3 -m pip install tensorflow==2.11
+  - git clone https://github.com/nmansard/jnrh2023
+  - cd jnrh2023
+  - python3 -m pip install example-robot-data-jnrh2023 jupyterlab meshcat scipy ipywidgets matplotlib
+  - python3 -m pip install tf_siren
+  
+Try running a test after these installs to check if the environment is working:
+
+python3 main.py --system-id='single_integrator' --seed=0 --nb-cpus=15 --w-S=1e-2 --test-n=0
+________________________________________________________________________________________________
+
+#Issues I ran into:
+ 
+ 1- Python/tensorflow versions, pygame, and stable-baselines
+ 
+ These are a bunch of closely related issues with versions of python and of these packages. The best I can explain it is as follows:
+
+When first running the tests directly after following the instructions above, this is the first error:
+ - File "/home/a2rlab2/.local/lib/python3.10/site-packages/stable_baselines/deepq/policies.py", line 2, in <module>
+    import tensorflow.contrib.layers as tf_layers
+ModuleNotFoundError: No module named 'tensorflow.contrib'
+
+The stable-baselines package attempted to access the tensorflow.contrib module, but this module was removed from tensorflow 2.X and is only present in 1.X versions. So naturally an easy solution is to downgrade tensorflow to an earlier version. This is corroborated by the stable-baselines documentation, which states that stable-baselines does not support tensorflow 2.X and is only compatible with tensorflow 1.8 to 1.13:
+ https://stable-baselines.readthedocs.io/en/master/guide/install.html
+  
+ The next issue when trying to downgrade is that tensorflow 1.X does not exist in python 3.8 or later. Python 3.7 or earlier is needed for this. I tried to create a new conda environment with python 3.7 and follow the instructions again, but then the following command does not work:
+
+python3 -m pip install example-robot-data-jnrh2023 jupyterlab meshcat scipy ipywidgets matplotlib
+
+so I went directly to the jnrh2023 repo and followed their instructions, which require pinocchio 2.99. But pinocchio 2.99 is only available in python >= 3.8, so this entire approach would not work at all.
+ 
+
+ 2- Pinocchio and Casadi interface issues:
+ 
+  Error:
+ ModuleNotFoundError: No module named 'pinocchio.casadi'
+
+Explanation: It seems only pinocchio 3 is compatible with casadi as earlier versions are not. Pinocchio 3 can be built from this branch:
+https://github.com/stack-of-tasks/pinocchio/tree/pinocchio3-preview
+
+I believe Pinnochio3 is not available to install using pip or conda. Here are a few helpful links:
+
+https://gitlab.cc-asp.fraunhofer.de/hanikevi/contact_mpc
+https://github.com/nmansard/jnrh2023
+https://github.com/ami-iit/ami-commons/blob/master/doc/casadi-ipopt-hsl.md
+
+I tried building directly from the branch but got a lot of memory-related errors.
+
+ 3- requirements.txt file:
+ 
+ ERROR: Could not find a version that satisfies the requirement [some package] (from versions: none)
+ERROR: No matching distribution found for [some package]
+
+I don't understand this error and what the packages listed in requirements.txt are really. I tried looking up some of them but haven't found any info about some (ex: ament-cmake, section-pkgs, action-msgs). I tried installing them with pip and coda but no luck in either. They may be ROS packages, here is the info I found online:
+https://index.ros.org/search/?term=ament-cmake-test&section=pkgs
+https://index.ros.org/search/?term=action-msgs&section=pkgs
+
+Note: this command is helpful to prevent pip from failing on a single line of requirements.txt
+
+cat requirements.txt | xargs -n 1 pip install
+
+
+4- Other misc errors: protobuf, pygame, wheel:
+
+Unfortunately (or fortunately), I haven't been able to replicate these errors since last week but I was having some trouble at one point with these packages. I don't recall when or how though. Please ignore the call stack below as it is only for my personal debugging use
+
+Building wheels for collected packages: pygame
+  Building wheel for pygame (setup.py) ... error
+  error: subprocess-exited-with-error
+  
+  × python setup.py bdist_wheel did not run successfully.
+  │ exit code: 1
+  ╰─> [44 lines of output]
+      src_c/imageext.c: In function ‘image_load_ext’:
+      src_c/imageext.c:118:13: warning: assignment discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+        118 |         ext = find_extension(name);
+            |             ^
+      src_c/imageext.c:107:9: warning: variable ‘lock_mutex’ set but not used [-Wunused-but-set-variable]
+        107 |     int lock_mutex = 0;
+            |         ^~~~~~~~~~
+      src_c/font.c: In function ‘font_dealloc’:
+      src_c/font.c:693:29: warning: initialization of ‘int **’ from incompatible pointer type ‘TTF_Font *’ {aka ‘struct _TTF_Font *’} [-Wincompatible-pointer-types]
+        693 |             int** face_pp = font;
+            |                             ^~~~
+      At top level:
+      src_c/font.c:78:1: warning: ‘utf_8_needs_UCS_4’ defined but not used [-Wunused-function]
+         78 | utf_8_needs_UCS_4(const char *str)
+            | ^~~~~~~~~~~~~~~~~
+      src_c/music.c: In function ‘_get_type_from_hint’:
+      src_c/music.c:307:22: warning: assignment discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+        307 |             namehint = dot + 1;
+            |                      ^
+      In file included from src_c/pygame.h:30,
+                       from src_c/music.c:27:
+      src_c/music.c: In function ‘_load_music’:
+      src_c/_pygame.h:253:47: warning: returning ‘PyObject *’ {aka ‘struct _object *’} from a function with incompatible return type ‘Mix_Music *’ {aka ‘struct _Mix_Music *’} [-Wincompatible-pointer-types]
+        253 | #define RAISE(x, y) (PyErr_SetString((x), (y)), (PyObject *)NULL)
+            |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+      src_c/mixer.h:9:16: note: in expansion of macro ‘RAISE’
+          9 |         return RAISE(pgExc_SDLError, "mixer not initialized")
+            |                ^~~~~
+      src_c/music.c:377:5: note: in expansion of macro ‘MIXER_INIT_CHECK’
+        377 |     MIXER_INIT_CHECK();
+            |     ^~~~~~~~~~~~~~~~
+      src_c/pypm.c:209:12: fatal error: longintrepr.h: No such file or directory
+        209 |   #include "longintrepr.h"
+            |            ^~~~~~~~~~~~~~~
+      compilation terminated.
+      
+      ---
+      For help with compilation see:
+          https://www.pygame.org/wiki/Compilation
+      To contribute to pygame development see:
+          https://www.pygame.org/contribute.html
+      ---
+      
+      error: command '/usr/bin/gcc' failed with exit code 1
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+  ERROR: Failed building wheel for pygame
+  Running setup.py clean for pygame
+Failed to build pygame
+ERROR: Could not build wheels for pygame, which is required to install pyproject.toml-based projects
+(cacto-env) a2rlab2@a2rlab-lenovo-1:~$ sudo apt-get install python-edv
+
+________________________________________________________________________________________________
+
+
+Solved by downloading segment_tree from openai baselines file and changing import line within replay_buffer.py
+
+
+
+
+ 
