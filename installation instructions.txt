@@ -1,0 +1,27 @@
+installation instructions:
+
+1. Download and install Python 3.10.12
+2. Download and install venv and create new environment for cacto. DO NOT use conda to avoid issues with pip
+3. execute the following commands:
+
+python3 -m pip install --upgrade pip
+python3 -m pip install tensorflow==2.11
+git clone https://github.com/nmansard/jnrh2023
+cd jnrh2023
+python3 -m pip install example-robot-data-jnrh2023 jupyterlab meshcat scipy ipywidgets matplotlib
+python3 -m pip install tf_siren
+python3 -m pip install mpmath
+python3 -m pip install matplotlib==3.5.1
+
+4. Run a test to verify installation:
+python3 main.py --system-id='single_integrator' --seed=0 --nb-cpus=15 --w-S=1e-2 --test-n=0
+System: single_integrator - N_try = 0
+
+
+for GPU to work here's what I did:
+https://www.tensorflow.org/install/pip
+pip uninstall tensorflow
+pip install tensorflow[and-cuda]
+
+
+
