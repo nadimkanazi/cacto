@@ -1,7 +1,7 @@
 installation instructions:
 
 1. Download and install Python 3.10.12
-2. Download and install venv and create new environment for cacto. DO NOT use conda to avoid issues with pip
+2. Download and install venv and create new environment for cacto. The original author recommends conda, however I recommend venv to avoid issues with pip
 3. execute the following commands:
 
 python3 -m pip install --upgrade pip
@@ -18,10 +18,6 @@ python3 main.py --system-id='single_integrator' --seed=0 --nb-cpus=15 --w-S=1e-2
 System: single_integrator - N_try = 0
 
 
-for GPU to work here's what I did:
+for GPU runs to work, follow and debug tensorflow/cuda related dependency installations
 https://www.tensorflow.org/install/pip
-pip uninstall tensorflow
-pip install tensorflow[and-cuda]
-
-
 

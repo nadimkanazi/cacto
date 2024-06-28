@@ -21,9 +21,10 @@ single integrator (system-id: single_integrator), double integrator (system-id: 
 | `--test-n`              | int    | 0       |                                                                                                      | Test number                         |
 | `--seed`                | int    | 0       |                                                                                                      | Random and tf.random seed           |
 | `--system-id`           | str    | 'single_integrator' | single_integrator, double_integrator, car, car_park, manipulator, ur5 | System-id (single_integrator, double_integrator, car, car_park, manipulator, ur5) |
-| `--recover-training-flag` | bool | False | True, False | Flag to recover training |
 | `--nb-cpus` | int | 2 | | Number of TO problems solved in parallel |
 | `--w-S` | float | 0 | | Sobolev training - weight of the value related error |
+| `--GPU-flag`              | bool    | N/A     |      include (True), omit (False)                                                                                              | Flag to use GPU for training     |
+| `--recover-training-flag` | bool | N/A | include (True), omit (False) | Flag to recover training |
 
 
 Example of usage: 
@@ -34,3 +35,7 @@ Example of usage:
 - 15 TO problems are solved in parallel (if enough resources are available);
 - The weight of the value-error is set to 1e-2 (the value-gradient-error is set to 1). Note that w-S=0 corresponds to the standard CACTO algorithm (without Sobolev-Learning);
 - The information about the test and the results are stored in the folder N_try_0.
+- The actor critic model is trained on the CPU without training recovery
+
+To run the same example on GPU and recover training, use the following command:
+```python3 main.py --system-id='single_integrator' --seed=0 --nb-cpus=15 --w-S=1e-2 --test-n=0 --GPU_flag --recover-training-flag```
