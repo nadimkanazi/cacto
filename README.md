@@ -38,4 +38,4 @@ Example of usage:
 - The actor critic model is trained on the CPU without training recovery
 
 To run the same example on GPU and recover training, use the following command:
-```python3 main.py --system-id='single_integrator' --seed=0 --nb-cpus=15 --w-S=1e-2 --test-n=0 --GPU_flag --recover-training-flag```
+```python3 main.py --system-id='single_integrator' --seed=0 --nb-cpus=15 --w-S=1e-2 --test-n=0 --GPU-flag --recover-training-flag```
