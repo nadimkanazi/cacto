@@ -1,7 +1,8 @@
-import math
+#import math
 import random
 import numpy as np
-import tensorflow as tf
+import torch
+#import tensorflow as tf
 import segment_tree
 #from stable_baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
 
@@ -70,19 +71,17 @@ class ReplayBuffer(object):
         terms = np.concatenate(terms, axis=0)
         
         return np.concatenate((obses_t, rewards.reshape(-1,1), obses_t1, dVdxs, dones.reshape(-1,1), terms.reshape(-1,1)),axis=1)
-    
+       
     def convert_sample_to_tensor(self, obses_t, rewards, obses_t1, dVdxs, dones, weights):
         ''' Convert batch of transitions into a tensor '''
-        obses_t = tf.convert_to_tensor(obses_t, dtype=tf.float32)
-        rewards = tf.convert_to_tensor(rewards, dtype=tf.float32)                                  
-        obses_t1 = tf.convert_to_tensor(obses_t1, dtype=tf.float32)
-        dVdxs = tf.convert_to_tensor(dVdxs, dtype=tf.float32)
-        dones = tf.convert_to_tensor(dones, dtype=tf.float32)
-        weights = tf.convert_to_tensor(weights, dtype=tf.float32)
+        obses_t = torch.tensor(obses_t, dtype=torch.float32)
+        rewards = torch.tensor(rewards, dtype=torch.float32)                                  
+        obses_t1 = torch.tensor(obses_t1, dtype=torch.float32)
+        dVdxs = torch.tensor(dVdxs, dtype=torch.float32)
+        dones = torch.tensor(dones, dtype=torch.float32)
+        weights = torch.tensor(weights, dtype=torch.float32)
         
         return obses_t, rewards, obses_t1, dVdxs, dones, weights
-
-
 
 class PrioritizedReplayBuffer:
     def __init__(self, conf):
@@ -111,13 +110,14 @@ class PrioritizedReplayBuffer:
         while it_capacity < self.conf.REPLAY_SIZE:
             it_capacity *= 2
 
-        self._it_sum = SumSegmentTree(it_capacity)
-        self._it_min = MinSegmentTree(it_capacity)
+        self._it_sum = segment_tree.SumSegmentTree(it_capacity)
+        self._it_min = segment_tree.MinSegmentTree(it_capacity)
         self._max_priority = 1.0
 
         #self.RB_type = 'ReLO'
 
-        self.MSE = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+        #self.MSE = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+        self.MSE = torch.nn.MSELoss(reduction='none')
     
     def add(self, obses_t, rewards, obses_t1, dVdxs, dones, terms):
         ''' Add transitions to the buffer '''
@@ -196,7 +196,7 @@ class PrioritizedReplayBuffer:
             td_errors_norm = np.clip(td_errors, 0, np.max(td_errors))
         else: # 'PER' is default self.RB_type
             # |TD_error_i|
-            td_errors_norm = tf.math.abs(tf.math.subtract(reward_to_go_batch, critic_value))
+            td_errors_norm = torch.abs(torch.sub(reward_to_go_batch, critic_value))
             td_errors_norm = td_errors_norm[:,0]
 
         # Compute the freshness discount factor
@@ -227,14 +227,14 @@ class PrioritizedReplayBuffer:
         terms = np.concatenate(terms, axis=0)
         
         return np.concatenate((obses_t, rewards.reshape(-1,1), obses_t1, dVdxs, dones.reshape(-1,1), terms.reshape(-1,1)),axis=1)
-    
+       
     def convert_sample_to_tensor(self, obses_t, rewards, obses_t1, dVdxs, dones, weights):
         ''' Convert batch of transitions into a tensor '''
-        obses_t = tf.convert_to_tensor(obses_t, dtype=tf.float32)
-        rewards = tf.convert_to_tensor(rewards, dtype=tf.float32)                             
-        obses_t1 = tf.convert_to_tensor(obses_t1, dtype=tf.float32)
-        dVdxs = tf.convert_to_tensor(dVdxs, dtype=tf.float32)
-        dones = tf.convert_to_tensor(dones, dtype=tf.float32)
-        weights = tf.convert_to_tensor(weights, dtype=tf.float32)
+        obses_t = torch.tensor(obses_t, dtype=torch.float32)
+        rewards = torch.tensor(rewards, dtype=torch.float32)                                  
+        obses_t1 = torch.tensor(obses_t1, dtype=torch.float32)
+        dVdxs = torch.tensor(dVdxs, dtype=torch.float32)
+        dones = torch.tensor(dones, dtype=torch.float32)
+        weights = torch.tensor(weights, dtype=torch.float32)
         
         return obses_t, rewards, obses_t1, dVdxs, dones, weights

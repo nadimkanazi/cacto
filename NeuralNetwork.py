@@ -1,14 +1,36 @@
-import math
-import random
 import numpy as np
-import tensorflow as tf
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.autograd import  Variable
 from tensorflow.keras import layers, regularizers
 from tf_siren import SinusodialRepresentationDense
 
 from utils import normalize_tensor
 
-class NN:
+class WeightedMSELoss(nn.Module):
+    '''
+    Weighted MSE Loss class to match tensorflow functionality with no reduction.
+    '''
+    def __init__(self):
+        super(WeightedMSELoss, self).__init__()
+    
+    def forward(self, inputs, targets, weights=None):
+        # Ensure inputs and targets are the same shape
+        if inputs.shape != targets.shape:
+            raise ValueError("Inputs and targets must have the same shape")
+        
+        # Compute MSE loss
+        mse_loss = torch.pow(inputs - targets, 2)
+        
+        if weights is not None:
+            if weights.shape != inputs.shape:
+                raise ValueError("Weights must have the same shape as inputs and targets")
+            mse_loss = mse_loss * weights
+        
+        return mse_loss  # Return the mean of the loss
 
+class NN:
     def __init__(self, env, conf, w_S=0):
         '''    
         :input env :                            (Environment instance)
@@ -41,96 +63,83 @@ class NN:
 
         self.env = env
         self.conf = conf
-
         self.w_S = w_S
-
-        self.MSE = tf.keras.losses.MeanSquaredError()
-
+        self.MSE = WeightedMSELoss()
         return
     
     def create_actor(self):
         ''' Create actor NN '''
-        inputs = layers.Input(shape=(self.conf.nb_state,))
-        
-        lay1 = layers.Dense(self.conf.NH1,kernel_regularizer=regularizers.l1_l2(self.conf.kreg_l1_A,self.conf.kreg_l2_A),bias_regularizer=regularizers.l1_l2(self.conf.breg_l1_A,self.conf.breg_l2_A))(inputs)                                        
-        leakyrelu1 = layers.LeakyReLU()(lay1)
-        lay2 = layers.Dense(self.conf.NH2, kernel_regularizer=regularizers.l1_l2(self.conf.kreg_l1_A,self.conf.kreg_l2_A),bias_regularizer=regularizers.l1_l2(self.conf.breg_l1_A,self.conf.breg_l2_A))(leakyrelu1)                                           
-        leakyrelu2 = layers.LeakyReLU()(lay2)
-        outputs = layers.Dense(self.conf.nb_action, kernel_regularizer=regularizers.l1_l2(self.conf.kreg_l1_A,self.conf.kreg_l2_A),bias_regularizer=regularizers.l1_l2(self.conf.breg_l1_A,self.conf.breg_l2_A))(leakyrelu2) 
-
-        model = tf.keras.Model(inputs, outputs)
-
+        model = nn.Sequential(
+            LinearLayerL1L2(self.conf.nb_state, self.conf.NH1, self.conf.kreg_l1_A,self.conf.kreg_l2_A, self.conf.breg_l1_A,self.conf.breg_l2_A),
+            nn.LeakyReLU(),
+            LinearLayerL1L2(self.conf.NH1, self.conf.NH2, self.conf.kreg_l1_A,self.conf.kreg_l2_A, self.conf.breg_l1_A,self.conf.breg_l2_A),
+            nn.LeakyReLU(),
+            LinearLayerL1L2(self.conf.NH2, self.conf.nb_action, self.conf.kreg_l1_A,self.conf.kreg_l2_A, self.conf.breg_l1_A,self.conf.breg_l2_A)
+        )
         return model
 
     def create_critic_elu(self): 
         ''' Create critic NN - elu'''
-        state_input = layers.Input(shape=(self.conf.nb_state,))
-
-        state_out1 = layers.Dense(16, activation='elu')(state_input) 
-        state_out2 = layers.Dense(32, activation='elu')(state_out1) 
-        out_lay1 = layers.Dense(256, activation='elu')(state_out2)
-        out_lay2 = layers.Dense(256, activation='elu')(out_lay1)
-        
-        outputs = layers.Dense(1)(out_lay2)
-
-        model = tf.keras.Model([state_input], outputs)
-
-        return model   
+        model = nn.Sequential(
+            nn.Linear(self.conf.nb_state, 16),
+            nn.ELU(),
+            nn.Linear(16, 32),
+            nn.ELU(),
+            nn.Linear(32, 256),
+            nn.ELU(),
+            nn.Linear(256, 256),
+            nn.ELU(),
+            nn.Linear(256, 1)
+        )
+        return model
     
+
     def create_critic_sine_elu(self): 
         ''' Create critic NN - elu'''
-        state_input = layers.Input(shape=(self.conf.nb_state,))
-
-        state_out1 = SinusodialRepresentationDense(64, activation='sine')(state_input) 
-        state_out2 = layers.Dense(64, activation='elu')(state_out1) 
-        out_lay1 = SinusodialRepresentationDense(128, activation='sine')(state_out2)
-        out_lay2 = layers.Dense(128, activation='elu')(out_lay1)
-
-        outputs = layers.Dense(1)(out_lay2)
-
-        model = tf.keras.Model([state_input], outputs)
-
+        model = nn.Sequential(
+            SineRepLayer(self.conf.nb_state, 64),
+            nn.Linear(64, 64),
+            nn.ELU(),
+            SineRepLayer(64, 128),
+            nn.Linear(128, 128),
+            nn.ELU(),
+            nn.Linear(128,1)
+        )
         return model  
     
     def create_critic_sine(self): 
         ''' Create critic NN - elu'''
-        state_input = layers.Input(shape=(self.conf.nb_state,))
-        
-        state_out1 = SinusodialRepresentationDense(64, activation='sine')(state_input) 
-        state_out2 = SinusodialRepresentationDense(64, activation='sine')(state_out1) 
-        out_lay1 = SinusodialRepresentationDense(128, activation='sine')(state_out2)
-        out_lay2 = SinusodialRepresentationDense(128, activation='sine')(out_lay1)
-        
-        outputs = layers.Dense(1)(out_lay2)
-
-        model = tf.keras.Model([state_input], outputs)
-
-        return model   
+        model = nn.Sequential(
+            SineRepLayer(self.conf.nb_state, 64),
+            SineRepLayer(64, 64),
+            SineRepLayer(64, 128),
+            SineRepLayer(128, 128),
+            nn.Linear(128, 1)
+        )
+        return model
     
     def create_critic_relu(self): 
         ''' Create critic NN - relu'''
-        state_input = layers.Input(shape=(self.conf.nb_state,))
-
-        state_out1 = layers.Dense(16, kernel_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C),bias_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C))(state_input) 
-        leakyrelu1 = layers.LeakyReLU()(state_out1)
-        
-        state_out2 = layers.Dense(32, kernel_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C),bias_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C))(leakyrelu1) 
-        leakyrelu2 = layers.LeakyReLU()(state_out2)
-        out_lay1 = layers.Dense(self.conf.NH1, kernel_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C),bias_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C))(leakyrelu2)
-        leakyrelu3 = layers.LeakyReLU()(out_lay1)
-        out_lay2 = layers.Dense(self.conf.NH2, kernel_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C),bias_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C))(leakyrelu3)
-        leakyrelu4 = layers.LeakyReLU()(out_lay2)
-        
-        outputs = layers.Dense(1, kernel_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C),bias_regularizer=regularizers.l1_l2(self.conf.kreg_l2_C,self.conf.kreg_l2_C))(leakyrelu4)
-
-        model = tf.keras.Model([state_input], outputs)
-
+        #NOTE: layers in the original code here were using kreg_l2_C for all which doesn't make sense. This was changed here. ASK about it
+        model = nn.Sequential(
+            LinearLayerL1L2(self.conf.nb_state, 16, self.conf.kreg_l1_C,self.conf.kreg_l2_C, self.conf.breg_l1_C,self.conf.breg_l2_C),
+            nn.LeakyReLU(),
+            LinearLayerL1L2(16, 32, self.conf.kreg_l1_C,self.conf.kreg_l2_C, self.conf.breg_l1_C,self.conf.breg_l2_C),
+            nn.LeakyReLU(),
+            LinearLayerL1L2(32, self.conf.NH1,self.conf.kreg_l1_C,self.conf.kreg_l2_C, self.conf.breg_l1_C,self.conf.breg_l2_C),
+            nn.LeakyReLU(),
+            LinearLayerL1L2(self.conf.NH1, self.conf.NH2,self.conf.kreg_l1_C,self.conf.kreg_l2_C, self.conf.breg_l1_C,self.conf.breg_l2_C),
+            nn.LeakyReLU(),
+            LinearLayerL1L2(self.conf.NH2, 1,self.conf.kreg_l1_C,self.conf.kreg_l2_C, self.conf.breg_l1_C,self.conf.breg_l2_C)
+        )
         return model     
 
     def eval(self, NN, input):
         ''' Compute the output of a NN given an input '''
-        if not tf.is_tensor(input):
-            input = tf.convert_to_tensor(input, dtype=tf.float32)
+        if not torch.is_tensor(input):
+            if isinstance(input, list):
+                input = np.array(input)
+            input = torch.tensor(input, dtype=torch.float32)
 
         if self.conf.NORMALIZE_INPUTS:
             input = normalize_tensor(input, self.conf.state_norm_arr)
@@ -139,11 +148,11 @@ class NN:
     
     def custom_logarithm(self,input):
         # Calculate the logarithms based on the non-zero condition
-        positive_log = tf.math.log(tf.math.maximum(input, 1e-7) + 1)
-        negative_log = -tf.math.log(tf.math.maximum(-input, 1e-7) + 1)
+        positive_log = torch.log(torch.maximum(input, torch.tensor(1e-7)) + 1)
+        negative_log = -torch.log(torch.maximum(-input, torch.tensor(1e-7)) + 1)
 
         # Use the appropriate logarithm based on the condition
-        result = tf.where(input > 0, positive_log, negative_log)
+        result = torch.where(input > 0, positive_log, negative_log)
 
         return result    
     
@@ -231,3 +240,113 @@ class NN:
         actor_grad = tape.gradient(mean_Qneg, actor_model.trainable_variables)
 
         return actor_grad
+
+class LinearLayerL1L2(nn.Module):
+    '''
+    Linear Layer with L1 and L2 regularization applied afterwards. 4 separate weights are used 
+    for each of L1/L2 kernel/bias regularization. This is done to replace the calls to 
+    tf.keras.regularizers which doesn't have a PyTorch equivalent
+    '''
+    def __init__(self, in_features, out_features, kreg_l1, kreg_l2, breg_l1, breg_l2):
+        super(LinearLayerL1L2, self).__init__()
+        self.linear = nn.Linear(in_features, out_features)
+        self.kreg_l1 = kreg_l1
+        self.kreg_l2 = kreg_l2
+        self.breg_l1 = breg_l1
+        self.breg_l2 = breg_l2
+
+    def forward(self, x):
+        x = self.linear(x)
+
+        # Regularization for weights
+        if self.kreg_l1 > 0:
+            l1_regularization_w = self.kreg_l1 * torch.sum(torch.abs(self.linear.weight))
+            x += l1_regularization_w
+        if self.kreg_l2 > 0:
+            l2_regularization_w = self.kreg_l2 * torch.sum(torch.pow(self.linear.weight, 2))
+            x += l2_regularization_w
+
+        # Regularization for biases
+        if self.breg_l1 > 0:
+            l1_regularization_b = self.breg_l1 * torch.sum(torch.abs(self.linear.bias))
+            x += l1_regularization_b
+        if self.breg_l2 > 0:
+            l2_regularization_b = self.breg_l2 * torch.sum(torch.pow(self.linear.bias, 2))
+            x += l2_regularization_b
+
+        return x
+
+
+class SineActivation(nn.Module):
+    '''
+    Sinusoidal activation function with weight w0
+    '''
+    def __init__(self, w0=1.0):
+        super(SineActivation, self).__init__()
+        self.w0 = w0
+
+    def forward(self, x):
+        return torch.sin(self.w0 * x)
+
+class SineRepLayer(nn.Module):
+    '''
+    This is the PyTorch Equivalent of the SinusodialRepresentationDense class
+    from siren.py in the tf_siren package. Yes, sinusoidal is misspelled in that package
+    and hence in this class as well. This class represents a linear layer initialized according to the 
+    paper 'Implicit Neural Representations with Periodic Activation Functions', followed by a sinusoidal
+    activation function
+    '''
+    #weights initialized with uniform
+    #biases initialized with he_uniform (see tf/keras fr details)
+    
+    def __init__(self, in_features, out_features, w0=1.0, c=6.0, use_bias=True):
+        model = nn.Sequential(
+            nn.Linear(in_features, out_features),
+            SineActivation(w0)
+        )
+        super(SineRepLayer, self).__init__()
+        self.w0 = w0
+        self.c = c
+        self.scale = c / (3.0 * w0 * w0)
+
+        self.model = model
+
+        # weights initialization
+        fan_in, _ = _compute_fans(self.model[0].weight.shape)
+        self.scale /= max(1.0, fan_in)
+        limit = np.sqrt(3.0 * self.scale)
+        #NOTE: MAKE THIS USE A GENERATOR FOR SEED USAGE
+        nn.init.uniform_(self.model[0].weight, -limit, limit)
+        
+        if use_bias:
+            #biases initialization
+            nn.init.uniform_(self.model[0].bias, -np.sqrt(6/fan_in), np.sqrt(6/fan_in))
+
+    def forward(self, x):
+        return self.model(x)
+    
+def _compute_fans(shape):
+    """Computes the number of input and output units for a weight shape.
+
+    Args:
+      shape: Integer shape tuple or TF tensor shape.
+
+    Returns:
+      A tuple of integer scalars (fan_in, fan_out).
+    """
+    if len(shape) < 1:  # Just to avoid errors for constants.
+        fan_in = fan_out = 1
+    elif len(shape) == 1:
+        fan_in = fan_out = shape[0]
+    elif len(shape) == 2:
+        fan_in = shape[0]
+        fan_out = shape[1]
+    else:
+        # Assuming convolution kernels (2D, 3D, or more).
+        # kernel shape: (..., input_depth, depth)
+        receptive_field_size = 1
+        for dim in shape[:-2]:
+            receptive_field_size *= dim
+        fan_in = shape[-2] * receptive_field_size
+        fan_out = shape[-1] * receptive_field_size
+    return int(fan_in), int(fan_out)

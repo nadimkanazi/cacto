@@ -21,3 +21,9 @@ System: single_integrator - N_try = 0
 for GPU runs to work, follow and debug tensorflow/cuda related dependency installations
 https://www.tensorflow.org/install/pip
 
+______________________________________________________________________________________________________
+to install PyTorch using pip inside venv
+for cuda 12.1
+pip3 install torch torchvision torchaudio
+or for cuda 11.8
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118

@@ -6,8 +6,9 @@ import random
 import argparse
 import importlib
 import numpy as np
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # {'0' -> show all logs, '1' -> filter out info, '2' -> filter out warnings}
-import tensorflow as tf
+#os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # {'0' -> show all logs, '1' -> filter out info, '2' -> filter out warnings}
+#import tensorflow as tf
+import torch
 from multiprocessing import Pool
 from RL import RL_AC 
 from TO import TO_Casadi 
@@ -49,8 +50,6 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    # Debugging only: statement for printing where operations are run
-    #tf.debugging.set_log_device_placement(True)
 
     args = parse_args()
     
@@ -58,37 +57,31 @@ if __name__ == '__main__':
     ### Testing in progress ###
     # Adding GPU compatibility for single GPU machine (no distributed support yet for multiple GPUs)
     GPU_flag = args['GPU_flag']
-    training_device = None
+
     if GPU_flag:
-        #os.environ["CUDA_VISIBLE_DEVICES"]="-1"
-        if tf.config.list_physical_devices('GPU') == []:
+        if torch.cuda.is_available():
+            training_device = torch.device("cuda:0")
+        else:
             print('Error: GPU flag argument was True but no physical GPU device found on machine.')
             sys.exit()
-        training_device = '/GPU:0'
     else:
         #use CPU only
-        training_device = '/CPU:0'
+        training_device = torch.device("cpu")
     
-    print(tf.config.experimental.list_physical_devices())
-    #device = '/CPU:0' if tf.config.list_physical_devices('GPU') == [] else '/GPU:0'
-    with tf.device(training_device):
+    with torch.device(training_device):
         N_try     = args['test_n']
 
         if args['seed'] == None:
             seed = random.randint(1,100000)
         else:
             seed = args['seed']
-        tf.random.set_seed(seed)  # Set tensorflow seed
+        torch.manual_seed(seed)
         random.seed(seed)         # Set random seed
 
         system_id = args['system_id'] 
 
         recover_training_flag = args['recover_training_flag']
-    
-    
-    
-
-    
+        
         nb_cpus = args['nb_cpus']
 
         w_S = args['w_S']

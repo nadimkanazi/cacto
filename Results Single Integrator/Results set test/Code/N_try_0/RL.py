@@ -1,7 +1,8 @@
 import uuid
 import math
 import numpy as np
-import tensorflow as tf
+#import tensorflow as tf
+import torch
 
 class RL_AC:
     def __init__(self, env, NN, conf, N_try):
@@ -79,24 +80,28 @@ class RL_AC:
         # Set optimizer specifying the learning rates
         if self.conf.LR_SCHEDULE:
             # Piecewise constant decay schedule
-            self.CRITIC_LR_SCHEDULE = tf.keras.optimizers.schedules.PiecewiseConstantDecay(self.conf.boundaries_schedule_LR_C, self.conf.values_schedule_LR_C) 
-            self.ACTOR_LR_SCHEDULE  = tf.keras.optimizers.schedules.PiecewiseConstantDecay(self.conf.boundaries_schedule_LR_A, self.conf.values_schedule_LR_A)
-            self.critic_optimizer   = tf.keras.optimizers.Adam(self.CRITIC_LR_SCHEDULE)
-            self.actor_optimizer    = tf.keras.optimizers.Adam(self.ACTOR_LR_SCHEDULE)
+
+            #NOTE: not sure about epochs used in 'milestones' variable
+            self.critic_optimizer   = torch.optim.Adam(self.critic_model.parameters(), eps = 1e-7)
+            self.actor_optimizer    = torch.optim.Adam(self.actor_model.parameters(), eps = 1e-7)
+
+            self.CRITIC_LR_SCHEDULE = torch.optim.lr_scheduler.MultiStepLR(self.critic_optimizer, milestones = [200, 300, 400, 500], gamma = 0.5)
+            self.ACTOR_LR_SCHEDULE  = torch.optim.lr_scheduler.MultiStepLR(self.actor_optimizer, milestones = [200, 300, 400, 500], gamma = 0.5)
         else:
-            self.critic_optimizer   = tf.keras.optimizers.Adam(self.conf.CRITIC_LEARNING_RATE)
-            self.actor_optimizer    = tf.keras.optimizers.Adam(self.conf.ACTOR_LEARNING_RATE)
+            self.critic_optimizer   = torch.optim.Adam(self.critic_model.parameters(), eps = 1e-7, lr = self.conf.CRITIC_LEARNING_RATE)
+            self.actor_optimizer    = torch.optim.Adam(self.actor_model.parameters(), eps = 1e-7, lr = self.conf.ACTOR_LEARNING_RATE)
 
         # Set initial weights of the NNs
         if recover_training is not None: 
+            #NOTE: this was not tested
             NNs_path_rec = str(recover_training[0])
             N_try = recover_training[1]
-            update_step_counter = recover_training[2]
-            self.actor_model.load_weights("{}/N_try_{}/actor_{}.h5".format(NNs_path_rec,N_try,update_step_counter))
-            self.critic_model.load_weights("{}/N_try_{}/critic_{}.h5".format(NNs_path_rec,N_try,update_step_counter))
-            self.target_critic.load_weights("{}/N_try_{}/target_critic_{}.h5".format(NNs_path_rec,N_try,update_step_counter))
+            update_step_counter = recover_training[2]   
+            self.actor_model.load_state_dict(torch.load(f"{NNs_path_rec}/N_try_{N_try}/actor_{update_step_counter}.pt"))
+            self.critic_model.load_state_dict(torch.load(f"{NNs_path_rec}/N_try_{N_try}/critic_{update_step_counter}.pt"))
+            self.target_critic.load_state_dict(torch.load(f"{NNs_path_rec}/N_try_{N_try}/target_critic_{update_step_counter}.pt"))
         else:
-            self.target_critic.set_weights(self.critic_model.get_weights())   
+            self.target_critic.load_state_dict(self.critic_model.state_dict())   
 
     def update(self, state_batch, state_next_rollout_batch, partial_reward_to_go_batch, dVdx_batch, d_batch, term_batch, weights_batch, batch_size=None):
         ''' Update both critic and actor '''
@@ -110,7 +115,7 @@ class RL_AC:
 
         return reward_to_go_batch, critic_value, target_critic_value
     
-    @tf.function
+    #@tf.function
     def update_target(self, target_weights, weights):
         ''' Update target critic NN '''
         tau = self.conf.UPDATE_RATE
@@ -224,7 +229,8 @@ class RL_AC:
             if ep == 0:
                 init_TO_controls[i,:] = np.zeros(self.conf.nb_action)
             else:
-                init_TO_controls[i,:] = tf.squeeze(self.NN.eval(self.actor_model, np.array([init_TO_states[i,:]]))).numpy()
+                #init_TO_controls[i,:] = tf.squeeze(self.NN.eval(self.actor_model, np.array([init_TO_states[i,:]]))).numpy()
+                init_TO_controls[i,:] = self.actor_model(torch.tensor(init_TO_states[i,:], dtype=torch.float32).unsqueeze(0)).squeeze().detach().numpy()
             init_TO_states[i+1,:] = self.env.simulate(init_TO_states[i,:],init_TO_controls[i,:])
             if np.isnan(init_TO_states[i+1,:]).any():
                 success_init_flag = 0
