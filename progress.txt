@@ -1,0 +1,60 @@
+done with conversion:
+utils.py
+TO.py
+robot_utils.py
+segment_tree.py
+replay_buffer.py
+conf.py files (x6)
+environment.py (not fully tested)
+environment_TO.py
+main.py
+NeuralNetwork.py (actor gradient and regularization)
+RL.py
+
+remaining:
+none... everything tested.
+
+NOTE: tf code is not entirely reproducible, same run diff results
+
+Note: regularization was not actually used in any of the original tensorflow code
+
+NOTE:: figure out magnitude of 10 difference in pytorch vs tensorflow actor grad function... could be due to regularization issues?
+
+divide param gradients by 10??
+
+Lev questions:
+Speedups?
+10x thingy?
+
+check env.reset() logic... it doesn't make much sense and can easily be vectorized
+
+see saved_models file... all pt weights are very small...
+
+!!!!!!!!!
+update target not working properly? issues with arithmetic precision and rounding but shhouldn't matter
+!!!!!!!!!!!!!!!!!
+
+gradient clipping??????
+test buffer and plotting functions?
+
+issue in rl_solve with very small values but it's overwritten by if statement with conf.env_RL = 0 in main.py
+
+
+from saved_models.py, I know actor values are very small in pytorch all e-4 but in tf they are much larger. Investigate this, could be due to actor_gradient issues
+d = torch.add(torch.mul(param.data, tau), torch.mul(target_param.data, 1 - tau))
+
+for layer in self.actor_model.layers:
+    print(f"Layer: {layer.name}")
+    weights = layer.get_weights()
+    for i, weight in enumerate(weights):
+        print(f"Weight {i}: Shape: {weight.shape}")
+        print(weight)
+        
+        
+for name, param in self.target_critic.named_parameters():
+    print(f"Layer: {name}, Shape: {param.shape}, Values: {param.data}")
+    
+    
+learn and update second iteration is screwing up? issue: first iteration of for loop above buffer.sample() is working fine, but afterwards tensorflow is diverging to NANs while pytorch is not updating weights even though the actor and critic grads calculated are similar (critic grads exactly same, actor grads slighlty different). optimizer.step() not updating weighhts in pytorch but in tf it's causing them to diverge? find out why... removing that for loop causes test to 'pass'?
+
+THE ISSUE MUST BE WITH THE ACTOR MODEL!

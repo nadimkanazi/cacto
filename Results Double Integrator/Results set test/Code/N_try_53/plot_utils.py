@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import tensorflow as tf
+import torch
 import matplotlib.pyplot as plt
 from matplotlib import cm, colors
 from matplotlib.patches import Ellipse, FancyBboxPatch, Rectangle
@@ -259,7 +259,9 @@ class PLOT():
             rollout_states[0,:] = np.copy(init_states_sim[k])
             
             for i in range(self.conf.NSTEPS):
-                rollout_controls[i,:] = tf.squeeze(self.NN.eval(actor_model, np.array([rollout_states[i,:]]))).numpy()
+                with torch.no_grad():
+                    rollout_controls[i, :] = self.NN.eval(actor_model, torch.tensor([rollout_states[i, :]], dtype=torch.float32)).squeeze().numpy()
+                #rollout_controls[i,:] = tf.squeeze(self.NN.eval(actor_model, np.array([rollout_states[i,:]]))).numpy()
                 rollout_states[i+1,:], rwrd_sim = self.env.step(self.conf.cost_weights_running, rollout_states[i,:],rollout_controls[i,:])
                 rollout_p_ee[i+1,:] = self.env.get_end_effector_position(rollout_states[i+1,:])
                 
@@ -474,7 +476,7 @@ class PLOT():
             ee_pos_RL[0,:] = self.env.get_end_effector_position(RL_states[0,:])
 
             for i in range(steps-1):
-                RL_action[i,:] = self.NN.eval(actor_model, np.array([RL_states[i,:]]))
+                RL_action[i,:] = self.NN.eval(actor_model, torch.tensor(np.array([RL_states[i,:]]), dtype=torch.float32))
                 RL_states[i+1,:] = self.env.simulate(RL_states[i,:], RL_action[i,:])
                 ee_pos_RL[i+1,:] = self.env.get_end_effector_position(RL_states[i+1,:])
             
@@ -621,7 +623,7 @@ if __name__ == '__main__':
     import importlib
     import numpy as np
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # {'0' -> show all logs, '1' -> filter out info, '2' -> filter out warnings}
-    import tensorflow as tf
+    import torch
     import matplotlib.pyplot as plt
     import mpl_toolkits.mplot3d.art3d as art3d
 
@@ -633,7 +635,7 @@ if __name__ == '__main__':
     N_try = 0
 
     seed = 0
-    tf.random.set_seed(seed)  # Set tensorflow seed
+    torch.manual_seed(seed)  # Set tensorflow seed
     random.seed(seed)         # Set random seed
 
     system_id = 'car_park'
@@ -645,7 +647,7 @@ if __name__ == '__main__':
     CPU_flag = 0
     if CPU_flag:
         os.environ["CUDA_VISIBLE_DEVICES"]="-1" 
-    tf.config.experimental.list_physical_devices('GPU')
+    #tf.config.experimental.list_physical_devices('GPU')
     
     nb_cpus = 1
 

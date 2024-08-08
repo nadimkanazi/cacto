@@ -5,7 +5,7 @@ import numpy as np
 #import pinocchio.casadi as cpin
 
 class TO_Casadi:
-    
+    #Tested Successfully#
     def __init__(self, env, conf, env_TO, w_S=0):
         '''    
         :input env :                            (Environment instance)
@@ -100,6 +100,7 @@ class TO_Casadi:
         return success_flag, TO_controls, TO_states, TO_ee_pos_arr, TO_total_cost, TO_step_cost
     
     def TO_Solve(self, ICS_state, init_TO_states, init_TO_controls, T):
+        #Tested Successfully#
         ''' Retrieve TO problem solution and compute the value function derviative with respect to the state '''
         success_flag, TO_controls, TO_states, TO_ee_pos_arr, _, TO_step_cost = self.TO_System_Solve(ICS_state, init_TO_states, init_TO_controls, T)
         if success_flag == 0:

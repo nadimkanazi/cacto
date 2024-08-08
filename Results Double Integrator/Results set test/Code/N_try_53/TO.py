@@ -1,8 +1,8 @@
-import sys
-import math
+#import sys
+#import math
 import casadi
 import numpy as np
-import pinocchio.casadi as cpin
+#import pinocchio.casadi as cpin
 
 class TO_Casadi:
     

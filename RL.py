@@ -78,18 +78,14 @@ class RL_AC:
             self.target_critic = self.NN.create_critic_relu()
 
         # Set optimizer specifying the learning rates
+        
+        self.critic_optimizer   = torch.optim.Adam(self.critic_model.parameters(), eps = 1e-7, lr = self.conf.CRITIC_LEARNING_RATE)
+        self.actor_optimizer    = torch.optim.Adam(self.actor_model.parameters(), eps = 1e-7, lr = self.conf.ACTOR_LEARNING_RATE)
         if self.conf.LR_SCHEDULE:
             # Piecewise constant decay schedule
-
             #NOTE: not sure about epochs used in 'milestones' variable
-            self.critic_optimizer   = torch.optim.Adam(self.critic_model.parameters(), eps = 1e-7)
-            self.actor_optimizer    = torch.optim.Adam(self.actor_model.parameters(), eps = 1e-7)
-
-            self.CRITIC_LR_SCHEDULE = torch.optim.lr_scheduler.MultiStepLR(self.critic_optimizer, milestones = [200, 300, 400, 500], gamma = 0.5)
-            self.ACTOR_LR_SCHEDULE  = torch.optim.lr_scheduler.MultiStepLR(self.actor_optimizer, milestones = [200, 300, 400, 500], gamma = 0.5)
-        else:
-            self.critic_optimizer   = torch.optim.Adam(self.critic_model.parameters(), eps = 1e-7, lr = self.conf.CRITIC_LEARNING_RATE)
-            self.actor_optimizer    = torch.optim.Adam(self.actor_model.parameters(), eps = 1e-7, lr = self.conf.ACTOR_LEARNING_RATE)
+            self.CRITIC_LR_SCHEDULE = torch.optim.lr_scheduler.MultiStepLR(self.critic_optimizer, milestones = self.conf.values_schedule_LR_C, gamma = 0.5)
+            self.ACTOR_LR_SCHEDULE  = torch.optim.lr_scheduler.MultiStepLR(self.actor_optimizer, milestones = self.conf.values_schedule_LR_A, gamma = 0.5)
 
         # Set initial weights of the NNs
         if recover_training is not None: 
@@ -105,26 +101,36 @@ class RL_AC:
 
     def update(self, state_batch, state_next_rollout_batch, partial_reward_to_go_batch, dVdx_batch, d_batch, term_batch, weights_batch, batch_size=None):
         ''' Update both critic and actor '''
-        # Update the critic backpropagating the gradients
-        critic_grad, reward_to_go_batch, critic_value, target_critic_value = self.NN.compute_critic_grad(self.critic_model, self.target_critic, state_batch, state_next_rollout_batch, partial_reward_to_go_batch, dVdx_batch, d_batch, weights_batch)
-        self.critic_optimizer.apply_gradients(zip(critic_grad, self.critic_model.trainable_variables))
+        #Tested Successfully#
 
-        # Update the actor backpropagating the gradients
-        actor_grad = self.NN.compute_actor_grad(self.actor_model, self.critic_model, state_batch, term_batch, batch_size)
-        self.actor_optimizer.apply_gradients(zip(actor_grad, self.actor_model.trainable_variables))
+        # Update the critic by backpropagating the gradients
+        self.critic_optimizer.zero_grad()
+        reward_to_go_batch, critic_value, target_critic_value = self.NN.compute_critic_grad(self.critic_model, self.target_critic, state_batch, state_next_rollout_batch, partial_reward_to_go_batch, dVdx_batch, d_batch, weights_batch)
+        self.critic_optimizer.step()  # Update the weights
+        
+        # Update the actor by backpropagating the gradients
+        self.actor_optimizer.zero_grad()
+        self.NN.compute_actor_grad(self.actor_model, self.critic_model, state_batch, term_batch, batch_size)
+        
+        self.actor_optimizer.step()  # Update the weights
+        if self.conf.LR_SCHEDULE:
+            self.ACTOR_LR_SCHEDULE.step()
+            self.CRITIC_LR_SCHEDULE.step()
 
         return reward_to_go_batch, critic_value, target_critic_value
-    
-    #@tf.function
+        
     def update_target(self, target_weights, weights):
         ''' Update target critic NN '''
+        #Tested Successfully#????????????????????
         tau = self.conf.UPDATE_RATE
-        for (a, b) in zip(target_weights, weights):
-            a.assign(b * tau + a * (1 - tau))
+        with torch.no_grad():
+            for target_param, param in zip(target_weights, weights):
+                target_param.data.copy_(param.data * tau + target_param.data * (1 - tau))
 
     def learn_and_update(self, update_step_counter, buffer, ep):
+        #Tested Successfully# Although only for one iteration (?)
         ''' Sample experience and update buffer priorities and NNs '''
-        for i in range(int(self.conf.UPDATE_LOOPS[ep])):
+        for _ in range(int(self.conf.UPDATE_LOOPS[ep])):
             # Sample batch of transitions from the buffer
             state_batch, partial_reward_to_go_batch, state_next_rollout_batch, dVdx_batch, d_batch, term_batch, weights_batch, batch_idxes = buffer.sample()
 
@@ -132,23 +138,28 @@ class RL_AC:
             reward_to_go_batch, critic_value, target_critic_value = self.update(state_batch, state_next_rollout_batch, partial_reward_to_go_batch, dVdx_batch, d_batch, term_batch, weights_batch)
 
             # Update buffer priorities
-            if self.conf.prioritized_replay_alpha != 0:                                
-                buffer.update_priorities(batch_idxes, reward_to_go_batch, critic_value, target_critic_value)  
+            if self.conf.prioritized_replay_alpha != 0:
+                buffer.update_priorities(batch_idxes, reward_to_go_batch, critic_value, target_critic_value)
 
             # Update target critic
             if not self.conf.MC:
-                self.update_target(self.target_critic.variables, self.critic_model.variables)
+                self.update_target(self.target_critic.parameters(), self.critic_model.parameters())
 
             update_step_counter += 1
 
-            # Plot rollouts and save the NNs every conf.log_rollout_interval-training episodes
-            if update_step_counter%self.conf.save_interval == 0:
+            # Plot rollouts and save the NNs every conf.save_interval training episodes
+            if update_step_counter % self.conf.save_interval == 0:
                 self.RL_save_weights(update_step_counter)
 
         return update_step_counter
     
     def RL_Solve(self, TO_controls, TO_states, TO_step_cost):
         ''' Solve RL problem '''
+        #NOTE: the values returned for self.ee_pos_arr are divergent from the tensorflow function
+        #but very noisy in both implementations (fluctuating between 0 and e200). These values are
+        #effectively not used since they are overwritten in compute_sample in main.py for all configs
+        #with conf.env_RL = 0.
+        #Tested Successfully#
         ep_return = 0                                                                 # Initialize the return
         rwrd_arr = np.empty(self.NSTEPS_SH+1)                                         # Reward array
         state_next_rollout_arr = np.zeros((self.NSTEPS_SH+1, self.conf.nb_state))     # Next state array
@@ -195,12 +206,18 @@ class RL_AC:
     
     def RL_save_weights(self, update_step_counter='final'):
         ''' Save NN weights '''
-        self.actor_model.save_weights(self.conf.NNs_path+"/N_try_{}/actor_{}.h5".format(self.N_try,update_step_counter))
-        self.critic_model.save_weights(self.conf.NNs_path+"/N_try_{}/critic_{}.h5".format(self.N_try,update_step_counter))
-        self.target_critic.save_weights(self.conf.NNs_path+"/N_try_{}/target_critic_{}.h5".format(self.N_try,update_step_counter))
+        actor_model_path = f"{self.conf.NNs_path}/N_try_{self.N_try}/actor_{update_step_counter}.pth"
+        critic_model_path = f"{self.conf.NNs_path}/N_try_{self.N_try}/critic_{update_step_counter}.pth"
+        target_critic_path = f"{self.conf.NNs_path}/N_try_{self.N_try}/target_critic_{update_step_counter}.pth"
+
+        # Save model weights
+        torch.save(self.actor_model.state_dict(), actor_model_path)
+        torch.save(self.critic_model.state_dict(), critic_model_path)
+        torch.save(self.target_critic.state_dict(), target_critic_path)
 
     def create_TO_init(self, ep, ICS):
         ''' Create initial state and initial controls for TO '''
+        #Tested Successfully#
         self.init_rand_state = ICS    
         
         self.NSTEPS_SH = self.conf.NSTEPS - int(self.init_rand_state[-1]/self.conf.dt)
@@ -230,7 +247,7 @@ class RL_AC:
                 init_TO_controls[i,:] = np.zeros(self.conf.nb_action)
             else:
                 #init_TO_controls[i,:] = tf.squeeze(self.NN.eval(self.actor_model, np.array([init_TO_states[i,:]]))).numpy()
-                init_TO_controls[i,:] = self.actor_model(torch.tensor(init_TO_states[i,:], dtype=torch.float32).unsqueeze(0)).squeeze().detach().numpy()
+                init_TO_controls[i,:] = self.NN.eval(self.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float32)).squeeze().detach().numpy()
             init_TO_states[i+1,:] = self.env.simulate(init_TO_states[i,:],init_TO_controls[i,:])
             if np.isnan(init_TO_states[i+1,:]).any():
                 success_init_flag = 0

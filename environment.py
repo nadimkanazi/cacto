@@ -2,13 +2,14 @@ import math
 import mpmath
 import random
 import numpy as np
-import tensorflow as tf
+import torch
 import pinocchio as pin
-
 from utils import *
 
+#Note: this should be changed to use just one math toolbox. Why numpy and math?
+#numpy is quicker
 class Env:
-    def __init__(self, conf):
+    def __init__(self, conf, seed = 0):
         '''    
         :input conf :                           (Configuration file)
 
@@ -38,6 +39,8 @@ class Env:
         self.nv = conf.nv
         self.nx = conf.nx
         self.nu = conf.na
+        self.seed = seed
+        np.random.seed(self.seed)    
 
         # Rename reward parameters
         self.offset = self.conf.cost_funct_param[0]
@@ -47,9 +50,9 @@ class Env:
         ''' Choose initial state uniformly at random '''
         state = np.zeros(self.conf.nb_state)
 
-        time = random.uniform(self.conf.x_init_min[-1], self.conf.x_init_max[-1])
+        time = np.random.uniform(self.conf.x_init_min[-1], self.conf.x_init_max[-1])
         for i in range(self.conf.nb_state-1): 
-            state[i] = random.uniform(self.conf.x_init_min[i], self.conf.x_init_max[i]) 
+            state[i] = np.random.uniform(self.conf.x_init_min[i], self.conf.x_init_max[i])
         state[-1] = self.conf.dt*round(time/self.conf.dt)
 
         return state
@@ -135,13 +138,13 @@ class Env:
         ''' Simulate dynamics using tensors and compute its gradient w.r.t control. Batch-wise computation '''        
         state_next = np.array([self.simulate(s, a) for s, a in zip(state, action)])
 
-        return tf.convert_to_tensor(state_next, dtype=tf.float32)
+        return torch.tensor(state_next, dtype=torch.float32)
         
     def derivative_batch(self, state, action):
         ''' Simulate dynamics using tensors and compute its gradient w.r.t control. Batch-wise computation '''        
         Fu = np.array([self.derivative(s, a) for s, a in zip(state, action)])
 
-        return tf.convert_to_tensor(Fu, dtype=tf.float32)
+        return torch.tensor(Fu, dtype=torch.float32)
     
     def get_end_effector_position(self, state, recompute=True):
         ''' Compute end-effector position '''
@@ -276,14 +279,17 @@ class SingleIntegrator(Env):
     
     def reward_batch(self, weights, state, action):
         ''' Compute reward using tensors. Batch-wise computation '''
-        partial_reward = np.array([self.reward(w, s) for w, s in zip(weights, state)])
+        partial_reward = torch.tensor([self.reward(w, s) for w, s in zip(weights, state)], dtype=torch.float32)
 
-        # Redefine action-related cost in tensorflow version
-        u_cost = tf.reduce_sum((action**2 + self.conf.w_b*(action/self.conf.u_max)**10),axis=1) 
-
-        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float32)
-
-        return tf.reshape(r, [r.shape[0], 1])
+        # Redefine action-related cost
+        
+        act_sq = torch.pow(action,2)
+        norm_act_e10 = torch.pow(action/torch.tensor(self.conf.u_max), 10)
+        u_cost = torch.sum((act_sq + self.conf.w_b*norm_act_e10), dim=1)
+        weights = torch.tensor(weights, dtype=torch.float32)
+        
+        r = self.scale*(-weights[:,6]*u_cost) + partial_reward
+        return torch.reshape(r, (r.shape[0], 1))
 
 class DoubleIntegrator(Env):
     '''
@@ -352,14 +358,17 @@ class DoubleIntegrator(Env):
     
     def reward_batch(self, weights, state, action):
         ''' Compute reward using tensors. Batch-wise computation '''
-        partial_reward = np.array([self.reward(w, s) for w, s in zip(weights, state)])
+        partial_reward = torch.tensor([self.reward(w, s) for w, s in zip(weights, state)], dtype=torch.float32)
 
-        # Redefine action-related cost in tensorflow version
-        u_cost = tf.reduce_sum((action**2 + self.conf.w_b*(action/self.conf.u_max)**10),axis=1) 
-
-        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float32)
-
-        return tf.reshape(r, [r.shape[0], 1])
+        # Redefine action-related cost
+        
+        act_sq = torch.pow(action,2)
+        norm_act_e10 = torch.pow(action/torch.tensor(self.conf.u_max), 10)
+        u_cost = torch.sum((act_sq + self.conf.w_b*norm_act_e10), dim=1)
+        weights = torch.tensor(weights, dtype=torch.float32)
+        
+        r = self.scale*(-weights[:,6]*u_cost) + partial_reward
+        return torch.reshape(r, (r.shape[0], 1))
 
 class Car(Env):
     '''
@@ -438,8 +447,8 @@ class Car(Env):
         ''' Simulate dynamics '''
         state_next = np.zeros(self.nx+1)
 
-        state_next[0] = state[0] + self.conf.dt*state[3]*tf.cos(state[2]) + self.conf.dt**2*state[4]*tf.cos(state[2])/2
-        state_next[1] = state[1] + self.conf.dt*state[3]*tf.sin(state[2]) + self.conf.dt**2*state[4]*tf.sin(state[2])/2
+        state_next[0] = state[0] + self.conf.dt*state[3]*torch.cos(state[2]) + self.conf.dt**2*state[4]*torch.cos(state[2])/2
+        state_next[1] = state[1] + self.conf.dt*state[3]*torch.sin(state[2]) + self.conf.dt**2*state[4]*torch.sin(state[2])/2
         state_next[2] = state[2] + self.conf.dt*action[0]
         state_next[3] = state[3] + self.conf.dt*state[4]
         state_next[4] = state[4] + self.conf.dt*action[1]
@@ -481,14 +490,17 @@ class Car(Env):
     
     def reward_batch(self, weights, state, action):
         ''' Compute reward using tensors. Batch-wise computation '''
-        partial_reward = np.array([self.reward(w, s) for w, s in zip(weights, state)])
+        partial_reward = torch.tensor([self.reward(w, s) for w, s in zip(weights, state)], dtype=torch.float32)
 
-        # Redefine action-related cost in tensorflow version
-        u_cost = tf.reduce_sum((action**2 + self.conf.w_b*(action/self.conf.u_max)**10),axis=1) 
+        # Redefine action-related cost
         
-        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float32)
-
-        return tf.reshape(r, [r.shape[0], 1])
+        act_sq = torch.pow(action,2)
+        norm_act_e10 = torch.pow(action/torch.tensor(self.conf.u_max), 10)
+        u_cost = torch.sum((act_sq + self.conf.w_b*norm_act_e10), dim=1)
+        weights = torch.tensor(weights, dtype=torch.float32)
+        
+        r = self.scale*(-weights[:,6]*u_cost) + partial_reward
+        return torch.reshape(r, (r.shape[0], 1))
     
 class CarPark(Car):
     '''
@@ -642,14 +654,17 @@ class CarPark(Car):
     
     def reward_batch(self, weights, state, action):
         ''' Compute reward using tensors. Batch-wise computation '''
-        partial_reward = np.array([self.reward(w, s) for w, s in zip(weights, state)])
+        partial_reward = torch.tensor([self.reward(w, s) for w, s in zip(weights, state)], dtype=torch.float32)
 
-        # Redefine action-related cost in tensorflow version
-        u_cost = tf.reduce_sum((action**2 + self.conf.w_b*(action/self.conf.u_max)**10),axis=1) 
-    
-        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float32)
-
-        return tf.reshape(r, [r.shape[0], 1])
+        # Redefine action-related cost
+        
+        act_sq = torch.pow(action,2)
+        norm_act_e10 = torch.pow(action/torch.tensor(self.conf.u_max), 10)
+        u_cost = torch.sum((act_sq + self.conf.w_b*norm_act_e10), dim=1)
+        weights = torch.tensor(weights, dtype=torch.float32)
+        
+        r = self.scale*(-weights[:,6]*u_cost) + partial_reward
+        return torch.reshape(r, (r.shape[0], 1))
     
 class Manipulator(Env):
     '''
@@ -724,14 +739,17 @@ class Manipulator(Env):
     
     def reward_batch(self, weights, state, action):
         ''' Compute reward using tensors. Batch-wise computation '''
-        partial_reward = np.array([self.reward(w, s) for w, s in zip(weights, state)])
+        partial_reward = torch.tensor([self.reward(w, s) for w, s in zip(weights, state)], dtype=torch.float32)
 
-        # Redefine action-related cost in tensorflow version
-        u_cost = tf.reduce_sum((action**2 + self.conf.w_b*(action/self.conf.u_max)**10),axis=1) 
-    
-        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float32)
-
-        return tf.reshape(r, [r.shape[0], 1])
+        # Redefine action-related cost
+        
+        act_sq = torch.pow(action,2)
+        norm_act_e10 = torch.pow(action/torch.tensor(self.conf.u_max), 10)
+        u_cost = torch.sum((act_sq + self.conf.w_b*norm_act_e10), dim=1)
+        weights = torch.tensor(weights, dtype=torch.float32)
+        
+        r = self.scale*(-weights[:,6]*u_cost) + partial_reward
+        return torch.reshape(r, (r.shape[0], 1))
 
 class UR5(Env):
 
@@ -806,11 +824,14 @@ class UR5(Env):
 
     def reward_batch(self, weights, state, action):
         ''' Compute reward using tensors. Batch-wise computation '''
-        partial_reward = np.array([self.reward(w, s) for w, s in zip(weights, state)])
+        partial_reward = torch.tensor([self.reward(w, s) for w, s in zip(weights, state)], dtype=torch.float32)
 
-        # Redefine action-related cost in tensorflow version
-        u_cost = tf.reduce_sum((action**2 + self.conf.w_b*(action/self.conf.u_max)**10),axis=1) 
-    
-        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float32)
-
-        return tf.reshape(r, [r.shape[0], 1])
+        # Redefine action-related cost
+        
+        act_sq = torch.pow(action,2)
+        norm_act_e10 = torch.pow(action/torch.tensor(self.conf.u_max), 10)
+        u_cost = torch.sum((act_sq + self.conf.w_b*norm_act_e10), dim=1)
+        weights = torch.tensor(weights, dtype=torch.float32)
+        
+        r = self.scale*(-weights[:,6]*u_cost) + partial_reward
+        return torch.reshape(r, (r.shape[0], 1))

@@ -212,4 +212,4 @@ fig_ax_lim = np.array([[-15, 15], [-15, 15]])                                   
 
 profile = 0                                                                                                 # Profile flag
 
-# {'test_n': 53, 'seed': 0, 'system_id': 'double_integrator', 'recover_training_flag': False, 'nb_cpus': 15, 'w_S': 0.01, 'GPU_flag': True}
+# {'test_n': 53, 'seed': 0, 'system_id': 'double_integrator', 'recover_training_flag': False, 'nb_cpus': 15, 'w_S': 0.01, 'GPU_flag': False}
