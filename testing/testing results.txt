@@ -17,7 +17,7 @@ NeuralNetwork.py:
 - class WeightedMSELoss:
 Tested on 100 sets of random input/target/weight vectors in [-1e5, 1e5, 1] with no issues.
 
-- functions create_actor, create_critic_elu, create_critic_sine_elu, create_critic_sine, create_Critic_relu:
+- functions create_actor, create_critic_elu, create_critic_sine_elu, create_critic_sine, create_critic_relu:
 Tested the number of layers and number of parameters against the tensorflow equivalent models. Initialized all weights to the same seeded random values as the tensorflow equivalent and propagated 100 random inputs forward with no issues. The output result of the networks was the same. Since networks are initialized randomly, there is no way to verify that the initialization of these networks follows the same scheme, however, they seem overall similar by inspection. Some layers in create_critic_sine (layer 2) looked like they had initial weights that were slightly larger than their TF equivalents, but this is likely not very important.
 
 - function eval, custom_logarithm:
@@ -45,7 +45,7 @@ successfully initializes models
 successfully tested against tf equivalent with random input vectors
 
 - function RL_Solve:
-mostly successfully tested against tf equivalent with random input vectors. All outuputs were similar to within an acceptable tolerance except the values in self.ee_pos_arr when conf.env_RL = 1 (True). The values in this array were very noisy in both tf and pytorch (mostly zeros, with some very large numbers included occasionally ex: e150). However, the configuration files used to produce the paper results are not using this result due to self.env_RL = 0 (False) so it does not affect the models being trained. This is an issue to be looked into later though if needed
+mostly successfully tested against tf equivalent with random input vectors. All outputs were similar to within an acceptable tolerance except the values in self.ee_pos_arr when conf.env_RL = 1 (True). The values in this array were very noisy in both tf and pytorch (mostly zeros, with some very large numbers included occasionally ex: e150). However, the configuration files used to produce the paper results are not using this result due to conf.env_RL = 0 (False) so it does not affect the models being trained. This is an issue to be looked into later though if needed
 
 - function update_target:
 successfully tested against tensorflow equivalent using random vectors for the weights. for small weights where numerical precision matters, there were issues with rounding/floating point arithmetic (~magnitude >= 1e-4) but this should not have a very large effect on training.
