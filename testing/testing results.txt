@@ -1,0 +1,81 @@
+The purpose of this document is to summarize the testing results from pytorch refactor for every file/class/function in the repo. 
+
+The following files were not edited and thus were not tested:
+all 6 conf_ files
+environment_TO.py
+generate_tests_set_script.py
+robot_utils.py
+plot_utils.py
+segment_tree.py
+TO.py
+
+Here are the testing results for each function in each file. Only functions that were modified were tested:
+
+______________________________________________________________________________________________
+NeuralNetwork.py:
+
+- class WeightedMSELoss:
+Tested on 100 sets of random input/target/weight vectors in [-1e5, 1e5, 1] with no issues.
+
+- functions create_actor, create_critic_elu, create_critic_sine_elu, create_critic_sine, create_Critic_relu:
+Tested the number of layers and number of parameters against the tensorflow equivalent models. Initialized all weights to the same seeded random values as the tensorflow equivalent and propagated 100 random inputs forward with no issues. The output result of the networks was the same. Since networks are initialized randomly, there is no way to verify that the initialization of these networks follows the same scheme, however, they seem overall similar by inspection. Some layers in create_critic_sine (layer 2) looked like they had initial weights that were slightly larger than their TF equivalents, but this is likely not very important.
+
+- function eval, custom_logarithm:
+tested successfully with 100 random vectors of numbers between [0-1]
+
+- function compute critic grad:
+tested successfully against its TF equivalent with 100 random vectors between 0-1. Note regularization was added into this function but had no large effect on gradients
+
+- function compute_actor_grad: 
+tested UNSUCCESSFULLY against its tensorflow equivalent and produces vectors exactly 10 times larger. All intermediate variables used are identical to within a tolerance of ~5% due to floating point arithmetic differences between the libraries. However, the gradients diverge by a factor of 10 after the call to total_loss.backward() in the last line. In other words, all variables are more or less the same until (includive) mean_Qneg. Note regularization was also added here but had no large effect on gradients. As a temporary band-aid solution gradients are divided by 10 before returning.
+
+- function compute_reg_loss:
+tested successfully against keras.regularizers.l1l2 using random vectors of numbers
+
+- classes SineActivation, SineRepLayer, and function _compute_fans:
+These classes were implemented as a tensorflow equivalent of the SinusodialRepresentationsDense class from the tf_siren library (References Siren layers from 'Implicit Neural Representations with Periodic Activation Functions https://arxiv.org/abs/2006.09661). The authors' code was in tf but I ended up finding existing pytorch implementations later as well. This was mostly for my understanding. Classes were tested against the tf_siren code for model parameters and initialization, and propagating forward random vectors as was done in the other models. The results were the same. Since these are also randomly initialized, comparing initializations was difficult but proved overall similar by inspection. Some differences are seen with the magnitudes of the weights but they are not significant and this implementation is also not necessary as the others can easily be used. The _compute_fans function is from the tf_siren source code. 
+
+______________________________________________________________________________________________
+RL.py:
+
+- function setup_model:
+successfully initializes models
+
+- function create_TO_init:
+successfully tested against tf equivalent with random input vectors
+
+- function RL_Solve:
+mostly successfully tested against tf equivalent with random input vectors. All outuputs were similar to within an acceptable tolerance except the values in self.ee_pos_arr when conf.env_RL = 1 (True). The values in this array were very noisy in both tf and pytorch (mostly zeros, with some very large numbers included occasionally ex: e150). However, the configuration files used to produce the paper results are not using this result due to self.env_RL = 0 (False) so it does not affect the models being trained. This is an issue to be looked into later though if needed
+
+- function update_target:
+successfully tested against tensorflow equivalent using random vectors for the weights. for small weights where numerical precision matters, there were issues with rounding/floating point arithmetic (~magnitude >= 1e-4) but this should not have a very large effect on training.
+
+- function update:
+successfully updates actor and critic networks as done in tf equivalent, however, any errors in compute_actor_grad will be propagated here. The function was tested as performing only 1 iteration of updates with random vectors and generated the same results as tf.
+
+- function learn and update:
+This function was tested successfully for 1 iteration only against its tensorflow equivalent with inputs created as is done in training (using compute_sample) and create_unif_TO_init. However, there is some inconsistent behavior here - when optimizer.step() is called with large gradients, the model weights are not updating in pytorch (vs in tensorflow they are diverging to NAN). Could need some looking into later.
+
+______________________________________________________________________________________________
+main.py:
+No explicit 'testing' was done as not much was changed and this is just an aggregation of all the other code. The training loop runs fine but the issues here are the same as the issues with the overall results: the call to plot_traj_from_ICS is not generating rollouts at all and creates an empty plot. This likely due to the fact that this function uses the actor network to produce the rollouts, and the actor network weights after training are incredibly small (1e-4) versus the tf implementation (1e-1, 1e1). The critic value functions plotted from plot_Critic_Value_function are also noisy and the root cause is not understood yet.
+
+______________________________________________________________________________________________
+utils.py:
+
+- function normalize_tensor: 
+Tested successfully against its tf equivalent using random tensors of numbers with identical results. NOTE: no other functions in this file were tested since they were not called anywhere in the code. 
+
+______________________________________________________________________________________________
+replay_buffer.py:
+
+changes to this file were very minimal and mainly involved data types between tf and torch, so no explicit testing was needed. The buffer works as expected
+______________________________________________________________________________________________
+environment.py
+changes here were also minimal so no direct testing was used since all functions behave as expected:
+
+- functions reward_batch, simulate_batch, derivative_batch:
+indirectly tested through compute_actor_grad
+
+- function simulate:
+indirectly tested through simulate_batch
