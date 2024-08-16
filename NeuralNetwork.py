@@ -34,7 +34,7 @@ class NN:
         '''    
         :input env :                            (Environment instance)
 
-        :input conf :                           (Configuration file)
+        :input self.conf :                           (self.configuration file)
 
             :param NH1:                         (int) 1st hidden layer size
             :param NH2:                         (int) 2nd hidden layer size
@@ -66,7 +66,27 @@ class NN:
         self.MSE = WeightedMSELoss()
         return
     
-    def create_actor(self):
+    def weightCopy(self, model, weights):
+        '''
+        Copies the given weights from the TF model into the pytorch model
+        '''
+        index = 0
+        for layer in model:
+            if isinstance(layer, nn.Linear) or isinstance(layer, Siren):
+                # Extract the weight and bias arrays
+                weight_array = torch.t(torch.tensor(weights[index][0]))
+                bias_array = torch.t(torch.tensor(weights[index][1]))
+                
+                # Set weights
+                with torch.no_grad():
+                    layer.weight.copy_(weight_array)
+                    layer.bias.copy_(bias_array)
+                    
+                # Move to the next set of weights
+                index += 1
+        return model
+    
+    def create_actor(self, weights=None):
         ''' Create actor NN '''
         #Tested Successfully#
         model = nn.Sequential(
@@ -76,13 +96,16 @@ class NN:
             nn.LeakyReLU(negative_slope=0.3),
             nn.Linear(self.conf.NH2, self.conf.nb_action)
         )
-        for layer in model:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
-                nn.init.constant_(layer.bias, 0)
+        if weights is not None:
+            model = self.weightCopy(model, weights)
+        else:
+            for layer in model:
+                if isinstance(layer, nn.Linear):
+                    nn.init.xavier_uniform_(layer.weight)
+                    nn.init.constant_(layer.bias, 0)
         return model
 
-    def create_critic_elu(self): 
+    def create_critic_elu(self, weights=None): 
         ''' Create critic NN - elu'''
         #Tested Successfully#
         model = nn.Sequential(
@@ -96,48 +119,37 @@ class NN:
             nn.ELU(),
             nn.Linear(256, 1)
         )
-        for layer in model:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
-                nn.init.constant_(layer.bias, 0)
+        if weights is not None:
+            model = self.weightCopy(model, weights)
+        else:
+            for layer in model:
+                if isinstance(layer, nn.Linear):
+                    nn.init.xavier_uniform_(layer.weight)
+                    nn.init.constant_(layer.bias, 0)
         return model
     
-
-    def create_critic_sine_elu(self): 
+    def create_critic_sine_elu(self, weights=None): 
         ''' Create critic NN - elu'''
         #Tested Successfully#
         model = nn.Sequential(
-            SineRepLayer(self.conf.nb_state, 64),
+            Siren(self.conf.nb_state, 64),
             nn.Linear(64, 64),
             nn.ELU(),
-            SineRepLayer(64, 128),
+            Siren(64, 128),
             nn.Linear(128, 128),
             nn.ELU(),
             nn.Linear(128,1)
         )
-        for layer in model:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
-                nn.init.constant_(layer.bias, 0)
+        if weights is not None:
+            model = self.weightCopy(model, weights)
+        else:
+            for layer in model:
+                if isinstance(layer, nn.Linear):
+                    nn.init.xavier_uniform_(layer.weight)
+                    nn.init.constant_(layer.bias, 0)
         return model
-    
-    # def create_critic_sine(self):
-    #     #Tested Successfully# 
-    #     ''' Create critic NN - elu'''
-    #     model = nn.Sequential(
-    #         SineRepLayer(self.conf.nb_state, 64),
-    #         SineRepLayer(64, 64),
-    #         SineRepLayer(64, 128),
-    #         SineRepLayer(128, 128),
-    #         nn.Linear(128, 1)
-    #     )
-    #     for layer in model:
-    #         if isinstance(layer, nn.Linear):
-    #             nn.init.xavier_uniform_(layer.weight)
-    #             nn.init.constant_(layer.bias, 0)
-    #     return model
-    
-    def create_critic_sine(self): 
+        
+    def create_critic_sine(self, weights=None): 
         ''' Create critic NN - elu'''
         model = nn.Sequential(
             Siren(self.conf.nb_state, 64),
@@ -146,9 +158,14 @@ class NN:
             Siren(128, 128),
             nn.Linear(128, 1)
         )
+        if weights is not None:
+            model = self.weightCopy(model, weights)
+        else:
+            nn.init.xavier_uniform_(model[-1].weight)
+            nn.init.constant_(model[-1].bias, 0)
         return model
-    
-    def create_critic_relu(self): 
+        
+    def create_critic_relu(self, weights=None): 
         ''' Create critic NN - relu'''
         #Tested Successfully#
         model = nn.Sequential(
@@ -162,12 +179,15 @@ class NN:
             nn.LeakyReLU(negative_slope=0.3),
             nn.Linear(self.conf.NH2, 1)
         )
-        for layer in model:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
-                nn.init.constant_(layer.bias, 0)
-        return model     
-
+        if weights is not None:
+            model = self.weightCopy(model, weights)
+        else:
+            for layer in model:
+                if isinstance(layer, nn.Linear):
+                    nn.init.xavier_uniform_(layer.weight)
+                    nn.init.constant_(layer.bias, 0)
+        return model
+    
     def eval(self, NN, input):
         ''' Compute the output of a NN given an input '''
         #Tested Successfully#
@@ -211,13 +231,11 @@ class NN:
             critic_value = self.eval(critic_model, state_batch)
             critic_loss = self.MSE(reward_to_go_batch, critic_value, weights=weights_batch)
         
-        #critic_grad = torch.autograd.grad(critic_loss, critic_model.parameters())
-        total_loss = critic_loss + self.compute_reg_loss(critic_model, False)
+        total_loss = critic_loss #+ self.compute_reg_loss(critic_model, False)
         critic_model.zero_grad()
         total_loss.backward()
 
         return reward_to_go_batch, critic_value, self.eval(target_critic, state_batch)
-        #return critic_grad, reward_to_go_batch, critic_value, target_critic(state_batch)
 
     def compute_actor_grad(self, actor_model, critic_model, state_batch, term_batch, batch_size):
         ''' 
@@ -280,24 +298,27 @@ class NN:
 
         # Compute the mean -Q across the batch
         mean_Qneg = Q_neg.mean()
-        total_loss = mean_Qneg + self.compute_reg_loss(actor_model, True)
+        total_loss = mean_Qneg #+ self.compute_reg_loss(actor_model, True)
 
         # Gradients of the actor loss w.r.t. actor's parameters
         actor_model.zero_grad()
         #actor_grad = torch.autograd.grad(mean_Qneg, actor_model.parameters())
         total_loss.backward()
-        #divide all grads by 10??
-        # for param in actor_model.parameters():
-        #     if param.grad is not None:
-        #         param.grad.data /= 10
+        for param in actor_model.parameters():
+            if param.grad is not None:
+                param.grad.data /= 10
+        #actor_grad = [param.grad for param in actor_model.parameters()]
+        #print()
+        #return actor_grad
         return
 
     def compute_reg_loss(self, model, actor):
         '''Computes L1 and L2 regularization losses for weights and biases'''
-        #NOTE: layers in the original tf code were using kreg_l2_C (from conf) for all regularization parameters. 
+        #NOTE: layers in the original tf code were using kreg_l2_C (from self.conf) for all regularization parameters. 
         #This doesn't make sense and was changed here. Also, the original codebase used the keras 
         #bias_regularizer and kernel_regularizer variables, but never accessed the actor_model.losses
-        #parameter to actually use the regularization loss in gradient computations
+        #parameter to actually use the regularization loss in gradient computations.
+        #I ended up not using this since it caused issues
         reg_loss = 0
         kreg_l1 = 0
         kreg_l2 = 0
@@ -331,76 +352,3 @@ class NN:
                     l2_regularization_b = breg_l2 * torch.sum(torch.pow(layer.bias, 2))
                     reg_loss += l2_regularization_b
         return reg_loss
-
-class SineActivation(nn.Module):
-    '''
-    Sinusoidal activation function with weight w0
-    '''
-    #Tested Successfully#
-    def __init__(self, w0=1.0):
-        super(SineActivation, self).__init__()
-        self.w0 = w0
-
-    def forward(self, x):
-        return torch.sin(self.w0 * x)
-
-class SineRepLayer(nn.Module):
-    '''
-    This is the PyTorch Equivalent of the SinusodialRepresentationDense class
-    from siren.py in the tf_siren package.This class represents a linear layer initialized according to the 
-    paper 'Implicit Neural Representations with Periodic Activation Functions', followed by a sinusoidal
-    activation function
-    '''
-    #Tested Successfully#
-    
-    def __init__(self, in_features, out_features, w0=1.0, c=6.0, use_bias=True):
-        model = nn.Sequential(
-            nn.Linear(in_features, out_features),
-            SineActivation(w0)
-        )
-        super(SineRepLayer, self).__init__()
-        self.w0 = w0
-        self.c = c
-        self.scale = c / (3.0 * w0 * w0)
-
-        self.model = model
-
-        # weights initialization
-        fan_in, _ = _compute_fans(self.model[0].weight.shape)
-        self.scale /= max(1.0, fan_in)
-        limit = np.sqrt(3.0 * self.scale)
-        #NOTE: MAKE THIS USE A GENERATOR FOR SEED USAGE
-        nn.init.uniform_(self.model[0].weight, -limit, limit)
-        
-        if use_bias:
-            #biases initialization
-            nn.init.uniform_(self.model[0].bias, -np.sqrt(6/fan_in), np.sqrt(6/fan_in))
-
-    def forward(self, x):
-        return self.model(x)
-
-def _compute_fans(shape):
-    """Computes the number of input and output units for a weight shape.
-
-    Args:
-      shape: Integer shape tuple or TF tensor shape.
-
-    Returns:
-      A tuple of integer scalars (fan_in, fan_out).
-    """
-    if len(shape) < 1:  # Just to avoid errors for constants.
-        fan_in = fan_out = 1
-    elif len(shape) == 1:
-        fan_in = fan_out = shape[0]
-    elif len(shape) == 2:
-        fan_in = shape[0]
-        fan_out = shape[1]
-    else:
-        # Assuming convolution kernels (2D, 3D, or more).
-        # kernel shape: (..., input_depth, depth)
-        receptive_field_size = 1
-        for dim in shape[:-2]:
-            receptive_field_size *= dim
-        fan_in = shape[-2] * receptive_field_size
-        fan_out = shape[-1] * receptive_field_size
-    return int(fan_in), int(fan_out)

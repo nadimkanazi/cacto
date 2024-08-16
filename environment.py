@@ -9,7 +9,7 @@ from utils import *
 #Note: this should be changed to use just one math toolbox. Why numpy and math?
 #numpy is quicker
 class Env:
-    def __init__(self, conf, seed = 0):
+    def __init__(self, conf):
         '''    
         :input conf :                           (Configuration file)
 
@@ -39,8 +39,6 @@ class Env:
         self.nv = conf.nv
         self.nx = conf.nx
         self.nu = conf.na
-        self.seed = seed
-        np.random.seed(self.seed)    
 
         # Rename reward parameters
         self.offset = self.conf.cost_funct_param[0]
@@ -54,7 +52,6 @@ class Env:
         for i in range(self.conf.nb_state-1): 
             state[i] = np.random.uniform(self.conf.x_init_min[i], self.conf.x_init_max[i])
         state[-1] = self.conf.dt*round(time/self.conf.dt)
-
         return state
 
     def check_ICS_feasible(self, state):

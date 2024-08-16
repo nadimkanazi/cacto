@@ -159,7 +159,7 @@ class PLOT():
 
     def plot_policy(self, tau, x, y, steps, n_updates, diff_loc=0):
         ''' Plot policy rollout from a single initial state as well as state and control trajectories '''
-        timesteps = self.self.conf.dt*np.arange(steps)
+        timesteps = self.conf.dt*np.arange(steps)
         
         fig = plt.figure(figsize=(12,8))
         plt.suptitle('POLICY: Discrete model, N try = {} N updates = {}'.format(self.N_try,n_updates), y=1)
@@ -235,9 +235,9 @@ class PLOT():
         ax.grid(True)
         fig.tight_layout()
         if diff_loc==0:
-            plt.savefig(self.conf.Fig_path+'/N_try_{}'.format(self.N_try)+'/PolicyEvaluationSingleInit_{}_{}'.format(self.N_try,n_updates))
+            plt.savefig(self.conf.Fig_path+'/N_try_{}'.format(self.N_try)+'/PolicyEvaluationSingleInit_{}_{}_torch'.format(self.N_try,n_updates))
         else:
-            plt.savefig(self.conf.Fig_path+'/N_try_{}'.format(self.N_try)+'/PolicyEvaluationMultiInit_{}_{}'.format(self.N_try,n_updates))
+            plt.savefig(self.conf.Fig_path+'/N_try_{}'.format(self.N_try)+'/PolicyEvaluationMultiInit_{}_{}_torch'.format(self.N_try,n_updates))
 
         plt.clf()
         plt.close(fig)
@@ -261,7 +261,7 @@ class PLOT():
             for i in range(self.conf.NSTEPS):
                 with torch.no_grad():
                     rollout_controls[i, :] = self.NN.eval(actor_model, torch.tensor([rollout_states[i, :]], dtype=torch.float32)).squeeze().numpy()
-                #rollout_controls[i,:] = tf.squeeze(self.NN.eval(actor_model, np.array([rollout_states[i,:]]))).numpy()
+                    #rollout_controls[i, :] = self.NN.eval(actor_model, torch.tensor(rollout_states[i, :], dtype=torch.float32)).squeeze().numpy()
                 rollout_states[i+1,:], rwrd_sim = self.env.step(self.conf.cost_weights_running, rollout_states[i,:],rollout_controls[i,:])
                 rollout_p_ee[i+1,:] = self.env.get_end_effector_position(rollout_states[i+1,:])
                 
@@ -341,7 +341,7 @@ class PLOT():
         ax.set_ylabel("Return")
         ax.set_title("N_try = {}".format(self.N_try))
         ax.grid(True)
-        plt.savefig(self.conf.Fig_path+'/N_try_{}'.format(self.N_try)+'/EpReturn_{}'.format(self.N_try))
+        plt.savefig(self.conf.Fig_path+'/N_try_{}'.format(self.N_try)+'/EpReturn_{}_torch'.format(self.N_try))
         plt.close()
 
     def plot_Critic_Value_function(self, critic_model, n_update, sys_id, name='V'):
@@ -371,7 +371,7 @@ class PLOT():
             ax.set_xlim(self.xlim)
             ax.set_ylim(self.ylim)
             ax.set_aspect('equal', 'box')
-            plt.savefig('{}/N_try_{}/{}_{}'.format(self.conf.Fig_path,self.N_try,name,int(n_update)))
+            plt.savefig('{}/N_try_{}/{}_{}_torch'.format(self.conf.Fig_path,self.N_try,name,int(n_update)))
             plt.close()
 
         else:
@@ -443,20 +443,6 @@ class PLOT():
         ax.set_aspect('equal', 'box')
         plt.savefig('{}/N_try_{}/V_sample_{}'.format(self.conf.Fig_path,self.N_try,int(n_update)))
         plt.close()
-
-    def plot_ICS(self,state_arr):
-        fig = plt.figure(figsize=(12,8))
-        ax = fig.add_subplot()
-        for j in range(len(state_arr)):
-            ax.scatter(state_arr[j][0,0],state_arr[j][0,1])
-            obs_plot_list = plot_fun.plot_obstaces()
-            for i in range(len(obs_plot_list)):
-                ax.add_artist(obs_plot_list[i]) 
-        ax.set_xlim(self.fig_ax_lim[0].tolist())
-        ax.set_ylim(self.fig_ax_lim[1].tolist())
-        ax.set_aspect('equal', 'box')
-        plt.savefig('{}/N_try_{}/ICS_{}_S{}'.format(conf.Fig_path,N_try,update_step_counter,int(w_S)))
-        plt.close(fig)
 
     def plot_rollout_and_traj_from_ICS(self, init_state, n_update, actor_model, TrOp, tag, steps=200):
         ''' Plot results from TO and episode to check consistency '''
@@ -610,107 +596,4 @@ class PLOT():
         ax1.grid(True)
         ax2.grid(True)
 
-        plt.savefig('{}/N_try_{}/ee_traj_{}_{}'.format(self.conf.Fig_path,self.N_try,init,update_step_counter))
-
-
-        
-
-if __name__ == '__main__':
-    import os
-    import sys
-    import time
-    import random
-    import importlib
-    import numpy as np
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # {'0' -> show all logs, '1' -> filter out info, '2' -> filter out warnings}
-    import torch
-    import matplotlib.pyplot as plt
-    import mpl_toolkits.mplot3d.art3d as art3d
-
-    from RL import RL_AC 
-    from plot_utils import PLOT
-    from NeuralNetwork import NN
-
-    ###           Input           ###
-    N_try = 0
-
-    seed = 0
-    torch.manual_seed(seed)  # Set tensorflow seed
-    random.seed(seed)         # Set random seed
-
-    system_id = 'car_park'
-
-    TO_method = 'casadi'
-
-    recover_training_flag = 0
-    
-    CPU_flag = 0
-    if CPU_flag:
-        os.environ["CUDA_VISIBLE_DEVICES"]="-1" 
-    #tf.config.experimental.list_physical_devices('GPU')
-    
-    nb_cpus = 1
-
-    w_S = 0
-    #################################
-
-    # Import configuration file and environment file
-    system_map = {
-        'single_integrator': ('conf_single_integrator', 'SingleIntegrator'),
-        'double_integrator': ('conf_double_integrator', 'DoubleIntegrator'),
-        'car':               ('conf_car', 'Car'),
-        'car_park':          ('conf_car_park', 'CarPark'),
-        'manipulator':       ('conf_manipulator', 'Manipulator'),
-        'ur5':               ('conf_ur5', 'UR5')
-    }
-
-    try:
-        conf_module, env_class = system_map[system_id]
-        conf = importlib.import_module(conf_module)
-        Environment = getattr(importlib.import_module('environment'), env_class)
-    except KeyError:
-        print('System {} not found'.format(system_id))
-        sys.exit()
-
-        
-
-    # Create folders to store the results and the trained NNs and save configuration
-    for path in conf.path_list:
-        os.makedirs(path + '/N_try_{}'.format(N_try), exist_ok=True)
-    os.makedirs(conf.Config_path, exist_ok=True)
-
-    params = [p for p in conf.__dict__ if not p.startswith("__")]
-    with open(conf.Config_path + '/config{}.txt'.format(N_try), 'w') as f:
-        for p in params:
-            f.write('{} = {}\n'.format(p, conf.__dict__[p]))
-        f.write('Seed = {}\n'.format(seed))
-        f.write('w_S = {}'.format(w_S))
-
-
-
-    # Create environment instances
-    env = Environment(conf)
-
-    # Create NN instance
-    NN_inst = NN(env, conf, w_S)
-
-    # Create RL_AC instance 
-    RLAC = RL_AC(env, NN_inst, conf, N_try)
-
-    # Set initial weights of the NNs, initialize the counter of the updates and setup NN models
-    if recover_training_flag:
-        recover_training = np.array([conf.NNs_path_rec, conf.N_try_rec, conf.update_step_counter_rec])
-        update_step_counter = conf.update_step_counter_rec
-        nb_starting_episode = (conf.update_step_counter_rec/conf.UPDATE_LOOPS)+1
-
-        RLAC.setup_model(recover_training)
-    else:
-        update_step_counter = 0
-        nb_starting_episode = 0
-
-        RLAC.setup_model()
-
-    # Create PLOT instance
-    plot_fun = PLOT(N_try, env, NN_inst, conf)
-
-    plot_fun.plot_Reward()
+        plt.savefig('{}/N_try_{}/ee_traj_{}_{}_torch'.format(self.conf.Fig_path,self.N_try,init,update_step_counter))

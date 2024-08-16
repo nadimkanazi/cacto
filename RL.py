@@ -1,7 +1,6 @@
 import uuid
 import math
 import numpy as np
-#import tensorflow as tf
 import torch
 
 class RL_AC:
@@ -55,32 +54,27 @@ class RL_AC:
         self.control_arr = None
         self.state_arr = None
         self.ee_pos_arr = None
-        self.exp_counter = np.zeros(conf.REPLAY_SIZE)
-
+        self.exp_counter = np.zeros(self.conf.REPLAY_SIZE)
         return
     
-    def setup_model(self, recover_training=None):
+    def setup_model(self, recover_training=None, weights=None):
         ''' Setup RL model '''
         # Create actor, critic and target NNs
-        self.actor_model = self.NN.create_actor()
+        critic_funcs = {
+            'elu': self.NN.create_critic_elu,
+            'sine': self.NN.create_critic_sine,
+            'sine-elu': self.NN.create_critic_sine_elu,
+            'relu': self.NN.create_critic_relu
+        }
 
-        if self.conf.critic_type == 'elu':
-            self.critic_model = self.NN.create_critic_elu()
-            self.target_critic = self.NN.create_critic_elu()
-        elif self.conf.critic_type == 'sine':
-            self.critic_model = self.NN.create_critic_sine()
-            self.target_critic = self.NN.create_critic_sine()
-        elif self.conf.critic_type == 'sine-elu':
-            self.critic_model = self.NN.create_critic_sine_elu()
-            self.target_critic = self.NN.create_critic_sine_elu()
-        else:
-            self.critic_model = self.NN.create_critic_relu()
-            self.target_critic = self.NN.create_critic_relu()
+        self.actor_model = self.NN.create_actor(weights = weights[0])
+        self.critic_model = critic_funcs[self.conf.critic_type](weights = weights[1])
+        self.target_critic = critic_funcs[self.conf.critic_type](weights = weights[2])
 
-        # Set optimizer specifying the learning rates
-        
+        # Initialize optimizers
         self.critic_optimizer   = torch.optim.Adam(self.critic_model.parameters(), eps = 1e-7, lr = self.conf.CRITIC_LEARNING_RATE)
         self.actor_optimizer    = torch.optim.Adam(self.actor_model.parameters(), eps = 1e-7, lr = self.conf.ACTOR_LEARNING_RATE)
+        # Set lr schedulers
         if self.conf.LR_SCHEDULE:
             # Piecewise constant decay schedule
             #NOTE: not sure about epochs used in 'milestones' variable
@@ -93,15 +87,14 @@ class RL_AC:
             NNs_path_rec = str(recover_training[0])
             N_try = recover_training[1]
             update_step_counter = recover_training[2]   
-            self.actor_model.load_state_dict(torch.load(f"{NNs_path_rec}/N_try_{N_try}/actor_{update_step_counter}.pt"))
-            self.critic_model.load_state_dict(torch.load(f"{NNs_path_rec}/N_try_{N_try}/critic_{update_step_counter}.pt"))
-            self.target_critic.load_state_dict(torch.load(f"{NNs_path_rec}/N_try_{N_try}/target_critic_{update_step_counter}.pt"))
+            self.actor_model.load_state_dict(torch.load(f"{NNs_path_rec}/N_try_{N_try}/actor_{update_step_counter}.pth"))
+            self.critic_model.load_state_dict(torch.load(f"{NNs_path_rec}/N_try_{N_try}/critic_{update_step_counter}.pth"))
+            self.target_critic.load_state_dict(torch.load(f"{NNs_path_rec}/N_try_{N_try}/target_critic_{update_step_counter}.pth"))
         else:
             self.target_critic.load_state_dict(self.critic_model.state_dict())   
 
     def update(self, state_batch, state_next_rollout_batch, partial_reward_to_go_batch, dVdx_batch, d_batch, term_batch, weights_batch, batch_size=None):
         ''' Update both critic and actor '''
-        #Tested Successfully#
 
         # Update the critic by backpropagating the gradients
         self.critic_optimizer.zero_grad()
@@ -111,7 +104,7 @@ class RL_AC:
         # Update the actor by backpropagating the gradients
         self.actor_optimizer.zero_grad()
         self.NN.compute_actor_grad(self.actor_model, self.critic_model, state_batch, term_batch, batch_size)
-        
+
         self.actor_optimizer.step()  # Update the weights
         if self.conf.LR_SCHEDULE:
             self.ACTOR_LR_SCHEDULE.step()
@@ -121,7 +114,6 @@ class RL_AC:
         
     def update_target(self, target_weights, weights):
         ''' Update target critic NN '''
-        #Tested Successfully#????????????????????
         tau = self.conf.UPDATE_RATE
         with torch.no_grad():
             for target_param, param in zip(target_weights, weights):
@@ -155,11 +147,6 @@ class RL_AC:
     
     def RL_Solve(self, TO_controls, TO_states, TO_step_cost):
         ''' Solve RL problem '''
-        #NOTE: the values returned for self.ee_pos_arr are divergent from the tensorflow function
-        #but very noisy in both implementations (fluctuating between 0 and e200). These values are
-        #effectively not used since they are overwritten in compute_sample in main.py for all configs
-        #with conf.env_RL = 0.
-        #Tested Successfully#
         ep_return = 0                                                                 # Initialize the return
         rwrd_arr = np.empty(self.NSTEPS_SH+1)                                         # Reward array
         state_next_rollout_arr = np.zeros((self.NSTEPS_SH+1, self.conf.nb_state))     # Next state array
@@ -217,7 +204,6 @@ class RL_AC:
 
     def create_TO_init(self, ep, ICS):
         ''' Create initial state and initial controls for TO '''
-        #Tested Successfully#
         self.init_rand_state = ICS    
         
         self.NSTEPS_SH = self.conf.NSTEPS - int(self.init_rand_state[-1]/self.conf.dt)
@@ -246,7 +232,6 @@ class RL_AC:
             if ep == 0:
                 init_TO_controls[i,:] = np.zeros(self.conf.nb_action)
             else:
-                #init_TO_controls[i,:] = tf.squeeze(self.NN.eval(self.actor_model, np.array([init_TO_states[i,:]]))).numpy()
                 init_TO_controls[i,:] = self.NN.eval(self.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float32)).squeeze().detach().numpy()
             init_TO_states[i+1,:] = self.env.simulate(init_TO_states[i,:],init_TO_controls[i,:])
             if np.isnan(init_TO_states[i+1,:]).any():

@@ -1,3 +1,4 @@
+# python3 main.py --system-id='double_integrator' --seed=0 --nb-cpus=15 --w-S=1e-2 --test-n=0
 import os
 import sys
 import time
@@ -6,14 +7,17 @@ import random
 import argparse
 import importlib
 import numpy as np
-#os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # {'0' -> show all logs, '1' -> filter out info, '2' -> filter out warnings}
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # {'0' -> show all logs, '1' -> filter out info, '2' -> filter out warnings}
 import torch
+import tensorflow as tf
 from multiprocessing import Pool
 from RL import RL_AC 
 from TO import TO_Casadi 
 from plot_utils import PLOT
 from NeuralNetwork import NN
 from replay_buffer import PrioritizedReplayBuffer, ReplayBuffer
+from TFNets import TFACNetworks
+
 
 def parse_args():
     ''' Parse the arguments for CACTO training '''
@@ -45,18 +49,13 @@ def parse_args():
 
     return dict_args
 
-
-
-
 if __name__ == '__main__':
-
+    # Get CLI args
     args = parse_args()
     
-    ###############           Input           ###############
-    ### Testing in progress ###
-    # Adding GPU compatibility for single GPU machine (no distributed support yet for multiple GPUs)
+    # Ignore for now
     GPU_flag = args['GPU_flag']
-
+    
     if GPU_flag:
         if torch.cuda.is_available():
             training_device = torch.device("cuda:0")
@@ -66,17 +65,19 @@ if __name__ == '__main__':
     else:
         #use CPU only
         training_device = torch.device("cpu")
-    
     with torch.device(training_device):
         N_try     = args['test_n']
-
+        # Set seeds
         if args['seed'] == None:
+            random.seed(0)
             seed = random.randint(1,100000)
         else:
             seed = args['seed']
+        np.random.seed(seed)
+        random.seed(seed)
+        tf.random.set_seed(seed)
         torch.manual_seed(seed)
-        random.seed(seed)         # Set random seed
-
+        
         system_id = args['system_id'] 
 
         recover_training_flag = args['recover_training_flag']
@@ -84,9 +85,6 @@ if __name__ == '__main__':
         nb_cpus = args['nb_cpus']
 
         w_S = args['w_S']
-        #########################################################
-
-
 
         # Import configuration file and environment file
         system_map = {
@@ -105,7 +103,7 @@ if __name__ == '__main__':
         except KeyError:
             print('System {} not found'.format(system_id))
             sys.exit()
-
+        
         # Create folders to store the results and the trained NNs
         for path in conf.path_list:
             os.makedirs(path + '/N_try_{}'.format(N_try), exist_ok=True)
@@ -123,36 +121,31 @@ if __name__ == '__main__':
         with open(conf.Config_path + '/' + conf_module + '_{}.py'.format(N_try), 'a') as f:
             f.write('\n\n# {}'.format(args))
 
-        # Copy all file with .py extension from /mydir to /mydestdir
-        for file in os.listdir("./"):
-            if file.endswith(".py"):
-                shutil.copy(os.path.join("./", file), os.path.join(conf.Code_path + '/N_try_{}'.format(N_try), file))
-
         # Create empty txt file in Log_path to store the test info
         open(conf.Log_path + '/info.txt', 'a').close()
 
-
-
-        ### Create instances of the used classes ###
-        env = Environment(conf)                                                                                 # Create environment instances
+        # Create instances of used classes
+        env = Environment(conf)
         env_TO = Environment_TO
-        NN_inst = NN(env, conf, w_S)                                                                            # Create NN instance
-        TrOp = TO_Casadi(env, conf, env_TO, w_S)                                                                # Create TO instance
-        RLAC = RL_AC(env, NN_inst, conf, N_try)                                                                 # Create RL instance
-        buffer = ReplayBuffer(conf) if conf.prioritized_replay_alpha == 0 else PrioritizedReplayBuffer(conf)    # Create an empty (prioritized) replay buffer
-        plot_fun = PLOT(N_try, env, NN_inst, conf)                                                              # Create PLOT instance
+        NN_inst = NN(env, conf)
+        TrOp = TO_Casadi(env, conf, env_TO, w_S)
+        plot_fun = PLOT(N_try, env, NN_inst, conf)
+        buffer = ReplayBuffer(conf) if conf.prioritized_replay_alpha == 0 else PrioritizedReplayBuffer(conf)
+        RLAC = RL_AC(env, NN_inst, conf, N_try)
+
+        ### TEMPORARILY USE THIS TO INITIALIZE WEIGHTS ###
+        tfmodels = TFACNetworks(conf)
 
         # Set initial weights of the NNs, initialize the counter of the updates and setup NN models
         if recover_training_flag:
             recover_training = np.array([conf.NNs_path_rec, conf.N_try_rec, conf.update_step_counter_rec])
             update_step_counter = conf.update_step_counter_rec
-
-            RLAC.setup_model(recover_training)
         else:
             update_step_counter = 0
+            recover_training = None
 
-            RLAC.setup_model()
-
+        RLAC.setup_model(recover_training = recover_training, weights = tfmodels.listWeights())
+         
         # Save initial weights of the NNs
         RLAC.RL_save_weights(update_step_counter)
 
@@ -161,52 +154,48 @@ if __name__ == '__main__':
 
         # Initialize arrays to store the reward history of each episode and the average reward history of last 100 episodes
         ep_arr_idx = 0
-        ep_reward_arr = np.zeros(conf.NEPISODES-ep_arr_idx)*np.nan                                                                                     
+        ep_reward_arr = np.zeros(conf.NEPISODES-ep_arr_idx)*np.nan  
 
         def compute_sample(args):
-            ''' Create samples solving TO problems starting from given ICS '''
-            #Tested Successfully#
-            ep = args[0]
-            ICS = args[1]
+                ''' Create samples solving TO problems starting from given ICS '''
+                ep = args[0]
+                ICS = args[1]
 
-            # Create initial TO #
-            init_rand_state, init_TO_states, init_TO_controls, NSTEPS_SH, success_init_flag = RLAC.create_TO_init(ep, ICS)
-            if success_init_flag == 0:
-                return None
+                # Create initial TO #
+                init_rand_state, init_TO_states, init_TO_controls, NSTEPS_SH, success_init_flag = RLAC.create_TO_init(ep, ICS)
+                if success_init_flag == 0:
+                    return None
+                    
+                # Solve TO problem #
+                TO_controls, TO_states, success_flag, TO_ee_pos_arr, TO_step_cost, dVdx = TrOp.TO_Solve(init_rand_state, init_TO_states, init_TO_controls, NSTEPS_SH)
+                if success_flag == 0:
+                    return None
                 
-            # Solve TO problem #
-            TO_controls, TO_states, success_flag, TO_ee_pos_arr, TO_step_cost, dVdx = TrOp.TO_Solve(init_rand_state, init_TO_states, init_TO_controls, NSTEPS_SH)
-            if success_flag == 0:
-                return None
-            
-            # Collect experiences 
-            state_arr, partial_reward_to_go_arr, total_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, RL_ee_pos_arr  = RLAC.RL_Solve(TO_controls, TO_states, TO_step_cost)
+                # Collect experiences 
+                state_arr, partial_reward_to_go_arr, total_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, RL_ee_pos_arr  = RLAC.RL_Solve(TO_controls, TO_states, TO_step_cost)
 
-            if conf.env_RL == 0:
-                RL_ee_pos_arr = TO_ee_pos_arr
+                if conf.env_RL == 0:
+                    RL_ee_pos_arr = TO_ee_pos_arr
 
-            return NSTEPS_SH, TO_controls, TO_ee_pos_arr, dVdx, state_arr.tolist(), partial_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, RL_ee_pos_arr
+                return NSTEPS_SH, TO_controls, TO_ee_pos_arr, dVdx, state_arr.tolist(), partial_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, RL_ee_pos_arr
 
         def create_unif_TO_init(n_UICS=1):
             ''' Create n uniformely distributed ICS '''
-            #Tested Successfully# (since env.reset was tested)
             # Create ICS TO #
             init_rand_state = env.reset()
             
             return init_rand_state
-        
 
         if conf.profile:
             import cProfile, pstats
 
             profiler = cProfile.Profile()
             profiler.enable()
-
         time_start = time.time()
 
         ### START TRAINING ###
-        print(f'Training starting on physical device:{training_device}')
-    
+        print(f'Training start')
+
         for ep in range(conf.NLOOPS): 
             # Generate and store conf.EP_UPDATE random-uniform ICS
             tmp = []
@@ -217,19 +206,16 @@ if __name__ == '__main__':
             for i in range(conf.EP_UPDATE):
                 result = compute_sample((ep, init_rand_state[i]))
                 tmp.append(result)
-    
+
             # Remove unsuccessful TO problems and update EP_UPDATE
             tmp = [x for x in tmp if x is not None]
             NSTEPS_SH, TO_controls, ee_pos_arr_TO, dVdx, state_arr, partial_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, ee_pos_arr_RL = zip(*tmp)
 
             # Update the buffer
-            buffer.add(state_arr, partial_reward_to_go_arr, state_next_rollout_arr, dVdx, done_arr, term_arr)
+            buffer.add(state_arr, partial_reward_to_go_arr, state_next_rollout_arr, dVdx, done_arr, term_arr)  
 
             # Update NNs
             update_step_counter = RLAC.learn_and_update(update_step_counter, buffer, ep)
-
-            # plot Critic value function
-            #plot_fun.plot_Critic_Value_function(RLAC.critic_model, update_step_counter, system_id) ###
 
             # Plot rollouts and state and control trajectories
             if update_step_counter%conf.plot_rollout_interval_diff_loc == 0 or system_id == 'single_integrator' or system_id == 'double_integrator' or system_id == 'car_park' or system_id == 'car' or system_id == 'manipulator':
@@ -254,7 +240,7 @@ if __name__ == '__main__':
             profiler.disable()
             stats = pstats.Stats(profiler).sort_stats('cumtime')
             stats.print_stats()
-
+        
         # Plot returns
         plot_fun.plot_Return(ep_reward_arr)
 
