@@ -253,8 +253,8 @@ class NN:
         actions = self.eval(actor_model, state_batch)
 
         # Both take into account normalization, ds_next_da is the gradient of the dynamics w.r.t. policy actions (ds'_da)
-        act_np = actions.detach().numpy()
-        state_next_tf, ds_next_da = self.env.simulate_batch(state_batch.detach().numpy(), act_np), self.env.derivative_batch(state_batch.detach().numpy(), act_np)
+        act_np = actions.detach().cpu().numpy()
+        state_next_tf, ds_next_da = self.env.simulate_batch(state_batch.detach().cpu().numpy(), act_np), self.env.derivative_batch(state_batch.detach().cpu().numpy(), act_np)
         
         state_next_tf = state_next_tf.clone().detach().to(dtype=torch.float32).requires_grad_(True)
         ds_next_da = ds_next_da.clone().detach().to(dtype=torch.float32).requires_grad_(True)
@@ -271,7 +271,12 @@ class NN:
         cost_weights_running_reshaped = torch.tensor(self.conf.cost_weights_running, dtype=torch.float32).reshape(1, -1)
 
         # Compute rewards
-        rewards_tf = self.env.reward_batch(term_batch.dot(cost_weights_terminal_reshaped) + (1-term_batch).dot(cost_weights_running_reshaped), state_batch.detach().numpy(), actions)
+        state_batch_np = state_batch.detach().cpu().numpy()
+        #temp1 = term_batch.dot(cost_weights_terminal_reshaped)
+        temp1 = torch.matmul(torch.tensor(term_batch, dtype=torch.float32), cost_weights_terminal_reshaped)
+        #temp2 = (1 - term_batch).dot(cost_weights_running_reshaped)
+        temp2 = torch.matmul(torch.tensor(1 - term_batch, dtype=torch.float32), cost_weights_running_reshaped)
+        rewards_tf = self.env.reward_batch(temp1 + temp2, state_batch_np, actions)
 
         # dr_da = gradient of reward r(s,a) w.r.t. policy's action a
         dr_da = torch.autograd.grad(outputs=rewards_tf, inputs=actions,

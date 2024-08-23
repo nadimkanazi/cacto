@@ -232,7 +232,7 @@ class RL_AC:
             if ep == 0:
                 init_TO_controls[i,:] = np.zeros(self.conf.nb_action)
             else:
-                init_TO_controls[i,:] = self.NN.eval(self.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float32)).squeeze().detach().numpy()
+                init_TO_controls[i,:] = self.NN.eval(self.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float32)).squeeze().detach().cpu().numpy()
             init_TO_states[i+1,:] = self.env.simulate(init_TO_states[i,:],init_TO_controls[i,:])
             if np.isnan(init_TO_states[i+1,:]).any():
                 success_init_flag = 0

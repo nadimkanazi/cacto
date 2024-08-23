@@ -179,13 +179,6 @@ if __name__ == '__main__':
 
                 return NSTEPS_SH, TO_controls, TO_ee_pos_arr, dVdx, state_arr.tolist(), partial_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, RL_ee_pos_arr
 
-        def create_unif_TO_init(n_UICS=1):
-            ''' Create n uniformely distributed ICS '''
-            # Create ICS TO #
-            init_rand_state = env.reset()
-            
-            return init_rand_state
-
         if conf.profile:
             import cProfile, pstats
 
@@ -194,17 +187,15 @@ if __name__ == '__main__':
         time_start = time.time()
 
         ### START TRAINING ###
-        print(f'Training start')
+        print(f'Training starting on device: {training_device}')
 
         for ep in range(conf.NLOOPS): 
             # Generate and store conf.EP_UPDATE random-uniform ICS
             tmp = []
-            init_rand_state = []
-            for i in range(conf.EP_UPDATE):
-                init_rand_state.append(create_unif_TO_init(i))
+            init_rand_state = env.reset_batch(conf.EP_UPDATE)
 
             for i in range(conf.EP_UPDATE):
-                result = compute_sample((ep, init_rand_state[i]))
+                result = compute_sample((ep, init_rand_state[i, :]))
                 tmp.append(result)
 
             # Remove unsuccessful TO problems and update EP_UPDATE

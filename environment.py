@@ -47,12 +47,19 @@ class Env:
     def reset(self):
         ''' Choose initial state uniformly at random '''
         state = np.zeros(self.conf.nb_state)
-
         time = np.random.uniform(self.conf.x_init_min[-1], self.conf.x_init_max[-1])
         for i in range(self.conf.nb_state-1): 
             state[i] = np.random.uniform(self.conf.x_init_min[i], self.conf.x_init_max[i])
         state[-1] = self.conf.dt*round(time/self.conf.dt)
         return state
+    
+    def reset_batch(self, batch_size):
+        ''' Create batch of random initial states '''
+        times = np.random.uniform(self.conf.x_init_min[-1], self.conf.x_init_max[-1], batch_size)
+        states = np.random.uniform(self.conf.x_init_min[:-1], self.conf.x_init_max[:-1], size=(batch_size, len(self.conf.x_init_max[:-1])))
+        times_int = np.expand_dims(self.conf.dt*np.round(times/self.conf.dt), axis=1)
+        return np.hstack((states, times_int))
+
 
     def check_ICS_feasible(self, state):
         ''' Check if ICS is not feasible '''

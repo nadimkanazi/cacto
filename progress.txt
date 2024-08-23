@@ -58,3 +58,14 @@ for name, param in self.target_critic.named_parameters():
 learn and update second iteration is screwing up? issue: first iteration of for loop above buffer.sample() is working fine, but afterwards tensorflow is diverging to NANs while pytorch is not updating weights even though the actor and critic grads calculated are similar (critic grads exactly same, actor grads slighlty different). optimizer.step() not updating weighhts in pytorch but in tf it's causing them to diverge? find out why... removing that for loop causes test to 'pass'?
 
 THE ISSUE MUST BE WITH THE ACTOR MODEL!
+
+next steps:
+- figure out integration with alex
+- figure out how to refactor pinocchio and other numpy stuff into torch for GPU runs
+
+ideas:
+- use cupy instead of numpy?
+- batch as many operations as possible
+- minimize i/o between cpu/gpu
+
+2 mins slower uwing reset_batch than regular reset?
