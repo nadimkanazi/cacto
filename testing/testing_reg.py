@@ -139,9 +139,9 @@ class WeightedMSELoss(torch.nn.Module):
         return torch.mean(mse_loss)  # Return the mean of the loss
 
 # Example inputs
-inputs_tf = tf.constant([1.0, 2.0, 3.0], dtype=tf.float32)
-targets_tf = tf.constant([1.5, 2.5, 3.5], dtype=tf.float32)
-weights_tf = tf.constant([0.1, 0.2, 0.3], dtype=tf.float32)
+inputs_tf = tf.constant([1.0, 2.0, 3.0], dtype=tf.float16)
+targets_tf = tf.constant([1.5, 2.5, 3.5], dtype=tf.float16)
+weights_tf = tf.constant([0.1, 0.2, 0.3], dtype=tf.float16)
 weights_tf = tf.reshape(weights_tf, (1,-1))
 
 # Calculate loss
@@ -150,9 +150,9 @@ loss_tf = mse_loss_tf(targets_tf, inputs_tf, sample_weight=weights_tf)
 loss_tf = tf.reduce_mean(loss_tf)
 print(f"TensorFlow Weighted MSE Loss: {loss_tf.numpy()}")
 
-inputs = torch.tensor([1.0, 2.0, 3.0], dtype=torch.float32)
-targets = torch.tensor([1.5, 2.5, 3.5], dtype=torch.float32)
-weights = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float32)
+inputs = torch.tensor([1.0, 2.0, 3.0], dtype=torch.float16)
+targets = torch.tensor([1.5, 2.5, 3.5], dtype=torch.float16)
+weights = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float16)
 
 # Instantiate loss function
 mse_loss_fn = WeightedMSELoss()

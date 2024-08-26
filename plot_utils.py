@@ -260,8 +260,8 @@ class PLOT():
             
             for i in range(self.conf.NSTEPS):
                 with torch.no_grad():
-                    rollout_controls[i, :] = self.NN.eval(actor_model, torch.tensor([rollout_states[i, :]], dtype=torch.float32)).squeeze().numpy()
-                    #rollout_controls[i, :] = self.NN.eval(actor_model, torch.tensor(rollout_states[i, :], dtype=torch.float32)).squeeze().numpy()
+                    rollout_controls[i, :] = self.NN.eval(actor_model, torch.tensor([rollout_states[i, :]], dtype=torch.float16)).squeeze().cpu().numpy()
+                    #rollout_controls[i, :] = self.NN.eval(actor_model, torch.tensor(rollout_states[i, :], dtype=torch.float16)).squeeze().numpy()
                 rollout_states[i+1,:], rwrd_sim = self.env.step(self.conf.cost_weights_running, rollout_states[i,:],rollout_controls[i,:])
                 rollout_p_ee[i+1,:] = self.env.get_end_effector_position(rollout_states[i+1,:])
                 
@@ -462,7 +462,7 @@ class PLOT():
             ee_pos_RL[0,:] = self.env.get_end_effector_position(RL_states[0,:])
 
             for i in range(steps-1):
-                RL_action[i,:] = self.NN.eval(actor_model, torch.tensor(np.array([RL_states[i,:]]), dtype=torch.float32))
+                RL_action[i,:] = self.NN.eval(actor_model, torch.tensor(np.array([RL_states[i,:]]), dtype=torch.float16))
                 RL_states[i+1,:] = self.env.simulate(RL_states[i,:], RL_action[i,:])
                 ee_pos_RL[i+1,:] = self.env.get_end_effector_position(RL_states[i+1,:])
             

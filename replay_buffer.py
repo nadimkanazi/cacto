@@ -74,12 +74,12 @@ class ReplayBuffer(object):
        
     def convert_sample_to_tensor(self, obses_t, rewards, obses_t1, dVdxs, dones, weights):
         ''' Convert batch of transitions into a tensor '''
-        obses_t = torch.tensor(obses_t, dtype=torch.float32)
-        rewards = torch.tensor(rewards, dtype=torch.float32)                                  
-        obses_t1 = torch.tensor(obses_t1, dtype=torch.float32)
-        dVdxs = torch.tensor(dVdxs, dtype=torch.float32)
-        dones = torch.tensor(dones, dtype=torch.float32)
-        weights = torch.tensor(weights, dtype=torch.float32)
+        obses_t = torch.tensor(obses_t, dtype=torch.float16)
+        rewards = torch.tensor(rewards, dtype=torch.float16)                                  
+        obses_t1 = torch.tensor(obses_t1, dtype=torch.float16)
+        dVdxs = torch.tensor(dVdxs, dtype=torch.float16)
+        dones = torch.tensor(dones, dtype=torch.float16)
+        weights = torch.tensor(weights, dtype=torch.float16)
         
         return obses_t, rewards, obses_t1, dVdxs, dones, weights
 
@@ -230,11 +230,11 @@ class PrioritizedReplayBuffer:
        
     def convert_sample_to_tensor(self, obses_t, rewards, obses_t1, dVdxs, dones, weights):
         ''' Convert batch of transitions into a tensor '''
-        obses_t = torch.tensor(obses_t, dtype=torch.float32)
-        rewards = torch.tensor(rewards, dtype=torch.float32)                                  
-        obses_t1 = torch.tensor(obses_t1, dtype=torch.float32)
-        dVdxs = torch.tensor(dVdxs, dtype=torch.float32)
-        dones = torch.tensor(dones, dtype=torch.float32)
-        weights = torch.tensor(weights, dtype=torch.float32)
+        obses_t = torch.tensor(obses_t, dtype=torch.float16)
+        rewards = torch.tensor(rewards, dtype=torch.float16)                                  
+        obses_t1 = torch.tensor(obses_t1, dtype=torch.float16)
+        dVdxs = torch.tensor(dVdxs, dtype=torch.float16)
+        dones = torch.tensor(dones, dtype=torch.float16)
+        weights = torch.tensor(weights, dtype=torch.float16)
         
         return obses_t, rewards, obses_t1, dVdxs, dones, weights

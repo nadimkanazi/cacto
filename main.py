@@ -179,13 +179,6 @@ if __name__ == '__main__':
 
                 return NSTEPS_SH, TO_controls, TO_ee_pos_arr, dVdx, state_arr.tolist(), partial_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, RL_ee_pos_arr
 
-        def create_unif_TO_init(n_UICS=1):
-            ''' Create n uniformely distributed ICS '''
-            # Create ICS TO #
-            init_rand_state = env.reset()
-            
-            return init_rand_state
-
         if conf.profile:
             import cProfile, pstats
 
@@ -194,44 +187,62 @@ if __name__ == '__main__':
         time_start = time.time()
 
         ### START TRAINING ###
-        print(f'Training start')
+        print(f'Training starting on device: {training_device}')
+        filename = f'timing_results_{time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())}_{training_device}.txt'
+        with open(filename, 'w') as file:
+            for ep in range(conf.NLOOPS):
+                # Timing for generating and storing initial random states
+                st = time.time()
+                init_rand_state = env.reset_batch(conf.EP_UPDATE)
+                et = time.time()
+                file.write(f"Time for env.reset_batch: {et - st:.4f} seconds\n")
+                
+                tmp = []
+                st = time.time()
+                for i in range(conf.EP_UPDATE):
+                    result = compute_sample((ep, init_rand_state[i, :]))
+                    tmp.append(result)
+                et = time.time()
+                file.write(f"Time for compute_sample loop {et - st:.4f} seconds\n")
+                # Remove unsuccessful TO problems and update EP_UPDATE
+                tmp = [x for x in tmp if x is not None]
+                NSTEPS_SH, TO_controls, ee_pos_arr_TO, dVdx, state_arr, partial_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, ee_pos_arr_RL = zip(*tmp)
 
-        for ep in range(conf.NLOOPS): 
-            # Generate and store conf.EP_UPDATE random-uniform ICS
-            tmp = []
-            init_rand_state = []
-            for i in range(conf.EP_UPDATE):
-                init_rand_state.append(create_unif_TO_init(i))
+                # Timing for updating the buffer
+                st = time.time()
+                buffer.add(state_arr, partial_reward_to_go_arr, state_next_rollout_arr, dVdx, done_arr, term_arr)
+                et = time.time()
+                file.write(f"Time for buffer.add: {et - st:.4f} seconds\n")
 
-            for i in range(conf.EP_UPDATE):
-                result = compute_sample((ep, init_rand_state[i]))
-                tmp.append(result)
+                # Timing for updating NNs
+                st = time.time()
+                update_step_counter = RLAC.learn_and_update(update_step_counter, buffer, ep)
+                et = time.time()
+                file.write(f"Time for RLAC.learn_and_update: {et - st:.4f} seconds\n")
 
-            # Remove unsuccessful TO problems and update EP_UPDATE
-            tmp = [x for x in tmp if x is not None]
-            NSTEPS_SH, TO_controls, ee_pos_arr_TO, dVdx, state_arr, partial_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, ee_pos_arr_RL = zip(*tmp)
+                # Plot rollouts and state and control trajectories
+                if update_step_counter % conf.plot_rollout_interval_diff_loc == 0 or system_id in ['single_integrator', 'double_integrator', 'car_park', 'car', 'manipulator']:
+                    print("System: {} - N_try = {}".format(conf.system_id, N_try))
+                    
+                    st = time.time()
+                    plot_fun.plot_Critic_Value_function(RLAC.critic_model, update_step_counter, system_id)
+                    et = time.time()
+                    file.write(f"Time for plot_Critic_Value_function: {et - st:.4f} seconds\n")
+                    
+                    st = time.time()
+                    plot_fun.plot_traj_from_ICS(np.array(conf.init_states_sim), TrOp, RLAC, update_step_counter=update_step_counter, ep=ep, steps=conf.NSTEPS, init=1)
+                    et = time.time()
+                    file.write(f"Time for plot_traj_from_ICS: {et - st:.4f} seconds\n")
 
-            # Update the buffer
-            buffer.add(state_arr, partial_reward_to_go_arr, state_next_rollout_arr, dVdx, done_arr, term_arr)  
+                # Update arrays to store the reward history and its average
+                ep_reward_arr[ep_arr_idx:ep_arr_idx+len(tmp)] = ep_return
+                ep_arr_idx += len(tmp)
 
-            # Update NNs
-            update_step_counter = RLAC.learn_and_update(update_step_counter, buffer, ep)
+                for i in range(len(tmp)):
+                    print(f"Episode {ep * len(tmp) + i} ---> Return = {ep_return[i]}")
 
-            # Plot rollouts and state and control trajectories
-            if update_step_counter%conf.plot_rollout_interval_diff_loc == 0 or system_id == 'single_integrator' or system_id == 'double_integrator' or system_id == 'car_park' or system_id == 'car' or system_id == 'manipulator':
-                print("System: {} - N_try = {}".format(conf.system_id, N_try))
-                plot_fun.plot_Critic_Value_function(RLAC.critic_model, update_step_counter, system_id)
-                plot_fun.plot_traj_from_ICS(np.array(conf.init_states_sim), TrOp, RLAC, update_step_counter=update_step_counter, ep=ep,steps=conf.NSTEPS, init=1)
-
-            # Update arrays to store the reward history and its average
-            ep_reward_arr[ep_arr_idx:ep_arr_idx+len(tmp)] = ep_return
-            ep_arr_idx += len(tmp)
-
-            for i in range(len(tmp)):
-                print("Episode  {}  --->   Return = {}".format(ep*len(tmp) + i, ep_return[i]))
-
-            if update_step_counter > conf.NUPDATES:
-                break
+                if update_step_counter > conf.NUPDATES:
+                    break
 
         time_end = time.time()
         print('Elapsed time: ', time_end-time_start)

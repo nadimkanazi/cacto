@@ -147,7 +147,7 @@ class NN_tf:
     def eval(self, NN, input):
         ''' Compute the output of a NN given an input '''
         if not tf.is_tensor(input):
-            input = tf.convert_to_tensor(input, dtype=tf.float32)
+            input = tf.convert_to_tensor(input, dtype=tf.float16)
 
         if conf.NORMALIZE_INPUTS:
             input = normalize_tensor_tf(input, conf.state_norm_arr)
@@ -353,7 +353,7 @@ class NN_torch:
         if not torch.is_tensor(input):
             if isinstance(input, list):
                 input = np.array(input)
-            input = torch.tensor(input, dtype=torch.float32)
+            input = torch.tensor(input, dtype=torch.float16)
 
         if conf.NORMALIZE_INPUTS:
             input = normalize_tensor(input, torch.tensor(conf.state_norm_arr))
@@ -417,8 +417,8 @@ class NN_torch:
         act_np = actions.detach().numpy()
         state_next_tf, ds_next_da = self.env.simulate_batch(state_batch.detach().numpy(), act_np), self.env.derivative_batch(state_batch.detach().numpy(), act_np)
         
-        state_next_tf = state_next_tf.clone().detach().to(dtype=torch.float32).requires_grad_(True)
-        ds_next_da = ds_next_da.clone().detach().to(dtype=torch.float32).requires_grad_(True)
+        state_next_tf = state_next_tf.clone().detach().to(dtype=torch.float16).requires_grad_(True)
+        ds_next_da = ds_next_da.clone().detach().to(dtype=torch.float16).requires_grad_(True)
 
         # Compute critic value at the next state
         critic_value_next = self.eval(critic_model, state_next_tf)
@@ -428,8 +428,8 @@ class NN_torch:
                                         grad_outputs=torch.ones_like(critic_value_next),
                                         create_graph=True)[0]
 
-        cost_weights_terminal_reshaped = torch.tensor(conf.cost_weights_terminal, dtype=torch.float32).reshape(1, -1)
-        cost_weights_running_reshaped = torch.tensor(conf.cost_weights_running, dtype=torch.float32).reshape(1, -1)
+        cost_weights_terminal_reshaped = torch.tensor(conf.cost_weights_terminal, dtype=torch.float16).reshape(1, -1)
+        cost_weights_running_reshaped = torch.tensor(conf.cost_weights_running, dtype=torch.float16).reshape(1, -1)
 
         # Compute rewards
         rewards_tf = self.env.reward_batch(term_batch.dot(cost_weights_terminal_reshaped) + (1-term_batch).dot(cost_weights_running_reshaped), state_batch.detach().numpy(), actions)
@@ -756,8 +756,8 @@ class RL_AC_tf:
                     state_next_rollout_arr[i,:] = self.state_arr[final_lookahead_step+1,:]
             
             # Compute the partial and total cost to go
-            partial_reward_to_go_arr[i] = np.float32(sum(rwrd_arr[i:final_lookahead_step+1]))
-            total_reward_to_go_arr[i] = np.float32(sum(rwrd_arr[i:self.NSTEPS_SH+1]))
+            partial_reward_to_go_arr[i] = np.float16(sum(rwrd_arr[i:final_lookahead_step+1]))
+            total_reward_to_go_arr[i] = np.float16(sum(rwrd_arr[i:self.NSTEPS_SH+1]))
 
         return self.state_arr, partial_reward_to_go_arr, total_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, self.ee_pos_arr
     
@@ -1014,8 +1014,8 @@ class RL_AC_torch:
                     state_next_rollout_arr[i,:] = self.state_arr[final_lookahead_step+1,:]
             
             # Compute the partial and total cost to go
-            partial_reward_to_go_arr[i] = np.float32(sum(rwrd_arr[i:final_lookahead_step+1]))
-            total_reward_to_go_arr[i] = np.float32(sum(rwrd_arr[i:self.NSTEPS_SH+1]))
+            partial_reward_to_go_arr[i] = np.float16(sum(rwrd_arr[i:final_lookahead_step+1]))
+            total_reward_to_go_arr[i] = np.float16(sum(rwrd_arr[i:self.NSTEPS_SH+1]))
 
         return self.state_arr, partial_reward_to_go_arr, total_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, self.ee_pos_arr
     
@@ -1061,7 +1061,7 @@ class RL_AC_torch:
                 init_TO_controls[i,:] = np.zeros(conf.nb_action)
             else:
                 #init_TO_controls[i,:] = tf.squeeze(self.NN.eval(self.actor_model, np.array([init_TO_states[i,:]]))).numpy()
-                init_TO_controls[i,:] = self.NN.eval(self.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float32)).squeeze().detach().numpy()
+                init_TO_controls[i,:] = self.NN.eval(self.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float16)).squeeze().detach().numpy()
                 #print(init_TO_controls.shape)
             init_TO_states[i+1,:] = self.env.simulate(init_TO_states[i,:],init_TO_controls[i,:])
             if np.isnan(init_TO_states[i+1,:]).any():
@@ -1198,13 +1198,13 @@ class Envtorch:
         ''' Simulate dynamics using tensors and compute its gradient w.r.t control. Batch-wise computation '''        
         state_next = np.array([self.simulate(s, a) for s, a in zip(state, action)])
 
-        return torch.tensor(state_next, dtype=torch.float32)
+        return torch.tensor(state_next, dtype=torch.float16)
         
     def derivative_batch(self, state, action):
         ''' Simulate dynamics using tensors and compute its gradient w.r.t control. Batch-wise computation '''        
         Fu = np.array([self.derivative(s, a) for s, a in zip(state, action)])
 
-        return torch.tensor(Fu, dtype=torch.float32)
+        return torch.tensor(Fu, dtype=torch.float16)
     
     def get_end_effector_position(self, state, recompute=True):
         ''' Compute end-effector position '''
@@ -1292,14 +1292,14 @@ class DoubleIntegratortorch(Envtorch):
     
     def reward_batch(self, weights, state, action):
         ''' Compute reward using tensors. Batch-wise computation '''
-        partial_reward = torch.tensor([self.reward(w, s) for w, s in zip(weights, state)], dtype=torch.float32)
+        partial_reward = torch.tensor([self.reward(w, s) for w, s in zip(weights, state)], dtype=torch.float16)
 
         # Redefine action-related cost
         
         act_sq = torch.pow(action,2)
         norm_act_e10 = torch.pow(action/torch.tensor(self.conf.u_max), 10)
         u_cost = torch.sum((act_sq + self.conf.w_b*norm_act_e10), dim=1)
-        weights = torch.tensor(weights, dtype=torch.float32)
+        weights = torch.tensor(weights, dtype=torch.float16)
         
         r = self.scale*(-weights[:,6]*u_cost) + partial_reward
         return torch.reshape(r, (r.shape[0], 1))
@@ -1431,13 +1431,13 @@ class Envtf:
         ''' Simulate dynamics using tensors and compute its gradient w.r.t control. Batch-wise computation '''        
         state_next = np.array([self.simulate(s, a) for s, a in zip(state, action)])
 
-        return tf.convert_to_tensor(state_next, dtype=tf.float32)
+        return tf.convert_to_tensor(state_next, dtype=tf.float16)
         
     def derivative_batch(self, state, action):
         ''' Simulate dynamics using tensors and compute its gradient w.r.t control. Batch-wise computation '''        
         Fu = np.array([self.derivative(s, a) for s, a in zip(state, action)])
 
-        return tf.convert_to_tensor(Fu, dtype=tf.float32)
+        return tf.convert_to_tensor(Fu, dtype=tf.float16)
     
     def get_end_effector_position(self, state, recompute=True):
         ''' Compute end-effector position '''
@@ -1530,7 +1530,7 @@ class DoubleIntegratortf(Envtf):
         # Redefine action-related cost in tensorflow version
         u_cost = tf.reduce_sum((action**2 + conf.w_b*(action/conf.u_max)**10),axis=1) 
 
-        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float32)
+        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float16)
 
         return tf.reshape(r, [r.shape[0], 1])
 
@@ -1577,23 +1577,23 @@ class TestRLAC(unittest.TestCase):
         weights_batch = np.random.rand(conf.BATCH_SIZE,1)
 
         # Convert numpy arrays to TensorFlow tensors and PyTorch tensors
-        state_batch_tf = tf.convert_to_tensor(state_batch, dtype=tf.float32)
-        state_batch_torch = torch.tensor(state_batch, dtype=torch.float32)
+        state_batch_tf = tf.convert_to_tensor(state_batch, dtype=tf.float16)
+        state_batch_torch = torch.tensor(state_batch, dtype=torch.float16)
         
-        state_next_rollout_batch_tf = tf.convert_to_tensor(state_next_rollout_batch, dtype=tf.float32)
-        state_next_rollout_batch_torch = torch.tensor(state_next_rollout_batch, dtype=torch.float32)
+        state_next_rollout_batch_tf = tf.convert_to_tensor(state_next_rollout_batch, dtype=tf.float16)
+        state_next_rollout_batch_torch = torch.tensor(state_next_rollout_batch, dtype=torch.float16)
         
-        partial_reward_to_go_batch_tf = tf.convert_to_tensor(partial_reward_to_go_batch, dtype=tf.float32)
-        partial_reward_to_go_batch_torch = torch.tensor(partial_reward_to_go_batch, dtype=torch.float32)
+        partial_reward_to_go_batch_tf = tf.convert_to_tensor(partial_reward_to_go_batch, dtype=tf.float16)
+        partial_reward_to_go_batch_torch = torch.tensor(partial_reward_to_go_batch, dtype=torch.float16)
         
-        dVdx_batch_tf = tf.convert_to_tensor(dVdx_batch, dtype=tf.float32)
-        dVdx_batch_torch = torch.tensor(dVdx_batch, dtype=torch.float32)
+        dVdx_batch_tf = tf.convert_to_tensor(dVdx_batch, dtype=tf.float16)
+        dVdx_batch_torch = torch.tensor(dVdx_batch, dtype=torch.float16)
         
-        d_batch_tf = tf.convert_to_tensor(d_batch, dtype=tf.float32)
-        d_batch_torch = torch.tensor(d_batch, dtype=torch.float32)
+        d_batch_tf = tf.convert_to_tensor(d_batch, dtype=tf.float16)
+        d_batch_torch = torch.tensor(d_batch, dtype=torch.float16)
         
-        weights_batch_tf = tf.convert_to_tensor(weights_batch, dtype=tf.float32)
-        weights_batch_torch = torch.tensor(weights_batch, dtype=torch.float32)
+        weights_batch_tf = tf.convert_to_tensor(weights_batch, dtype=tf.float16)
+        weights_batch_torch = torch.tensor(weights_batch, dtype=torch.float16)
         
         
         # Update TF and Torch models
@@ -2049,5 +2049,5 @@ if __name__ == '__main__':
     # init_TO_controls_pt = np.zeros((200,2))
     # init_TO_states = np.ones((201, conf.nb_state))
     # init_TO_controls_tf[i,:] = tf.squeeze(nn_tf.eval(rl_tf.actor_model, np.array([init_TO_states[i,:]]))).numpy()
-    # init_TO_controls_pt[i,:] = nn_torch.eval(rl_torch.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float32).unsqueeze(0)).squeeze().detach().numpy()
+    # init_TO_controls_pt[i,:] = nn_torch.eval(rl_torch.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float16).unsqueeze(0)).squeeze().detach().numpy()
     # print(np.testing.assert_allclose(init_TO_controls_pt, init_TO_controls_tf))

@@ -22,11 +22,6 @@ for GPU runs to work, follow and debug tensorflow/cuda related dependency instal
 https://www.tensorflow.org/install/pip
 
 ______________________________________________________________________________________________________
-to install PyTorch using pip inside venv:
-for cuda 12.1
-pip3 install torch torchvision torchaudio
-or for cuda 11.8
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-
-install siren-pytorch (https://github.com/lucidrains/siren-pytorch):
-pip-install siren-pytorch
+to run cacto-pytorch branch, install PyTorch and siren-pytorch using pip inside venv:
+pip3 install torch
+pip install siren-pytorch

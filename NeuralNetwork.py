@@ -103,7 +103,7 @@ class NN:
                 if isinstance(layer, nn.Linear):
                     nn.init.xavier_uniform_(layer.weight)
                     nn.init.constant_(layer.bias, 0)
-        return model
+        return model.to(torch.float16)
 
     def create_critic_elu(self, weights=None): 
         ''' Create critic NN - elu'''
@@ -126,7 +126,7 @@ class NN:
                 if isinstance(layer, nn.Linear):
                     nn.init.xavier_uniform_(layer.weight)
                     nn.init.constant_(layer.bias, 0)
-        return model
+        return model.to(torch.float16)
     
     def create_critic_sine_elu(self, weights=None): 
         ''' Create critic NN - elu'''
@@ -147,7 +147,7 @@ class NN:
                 if isinstance(layer, nn.Linear):
                     nn.init.xavier_uniform_(layer.weight)
                     nn.init.constant_(layer.bias, 0)
-        return model
+        return model.to(torch.float16)
         
     def create_critic_sine(self, weights=None): 
         ''' Create critic NN - elu'''
@@ -163,7 +163,7 @@ class NN:
         else:
             nn.init.xavier_uniform_(model[-1].weight)
             nn.init.constant_(model[-1].bias, 0)
-        return model
+        return model.to(torch.float16)
         
     def create_critic_relu(self, weights=None): 
         ''' Create critic NN - relu'''
@@ -186,7 +186,7 @@ class NN:
                 if isinstance(layer, nn.Linear):
                     nn.init.xavier_uniform_(layer.weight)
                     nn.init.constant_(layer.bias, 0)
-        return model
+        return model.to(torch.float16)
     
     def eval(self, NN, input):
         ''' Compute the output of a NN given an input '''
@@ -194,10 +194,10 @@ class NN:
         if not torch.is_tensor(input):
             if isinstance(input, list):
                 input = np.array(input)
-            input = torch.tensor(input, dtype=torch.float32)
+            input = torch.tensor(input, dtype=torch.float16)
 
         if self.conf.NORMALIZE_INPUTS:
-            input = normalize_tensor(input, torch.tensor(self.conf.state_norm_arr))
+            input = normalize_tensor(input, torch.tensor(self.conf.state_norm_arr, dtype=torch.float16))
 
         return NN(input)
     
@@ -253,11 +253,13 @@ class NN:
         actions = self.eval(actor_model, state_batch)
 
         # Both take into account normalization, ds_next_da is the gradient of the dynamics w.r.t. policy actions (ds'_da)
-        act_np = actions.detach().numpy()
-        state_next_tf, ds_next_da = self.env.simulate_batch(state_batch.detach().numpy(), act_np), self.env.derivative_batch(state_batch.detach().numpy(), act_np)
+        act_np = actions.detach().cpu().numpy()
+        #state_next_tf, ds_next_da = self.env.simulate_batch(state_batch.detach().cpu().numpy().astype(np.float16), act_np), self.env.derivative_batch(state_batch.detach().cpu().numpy().astype(np.float16), act_np)
+        state_next_tf, ds_next_da = self.env.simulate_batch(state_batch.detach().cpu().numpy(), act_np), self.env.derivative_batch(state_batch.detach().cpu().numpy(), act_np)
+        #state_next_tf, ds_next_da = self.env.simulate_batch(torch.tensor(state_batch), torch.tensor(act_np)), self.env.derivative_batch(torch.tensor(state_batch), torch.tensor(act_np))
         
-        state_next_tf = state_next_tf.clone().detach().to(dtype=torch.float32).requires_grad_(True)
-        ds_next_da = ds_next_da.clone().detach().to(dtype=torch.float32).requires_grad_(True)
+        state_next_tf = state_next_tf.clone().detach().to(dtype=torch.float16).requires_grad_(True)
+        ds_next_da = ds_next_da.clone().detach().to(dtype=torch.float16).requires_grad_(True)
 
         # Compute critic value at the next state
         critic_value_next = self.eval(critic_model, state_next_tf)
@@ -267,11 +269,16 @@ class NN:
                                         grad_outputs=torch.ones_like(critic_value_next),
                                         create_graph=True)[0]
 
-        cost_weights_terminal_reshaped = torch.tensor(self.conf.cost_weights_terminal, dtype=torch.float32).reshape(1, -1)
-        cost_weights_running_reshaped = torch.tensor(self.conf.cost_weights_running, dtype=torch.float32).reshape(1, -1)
+        cost_weights_terminal_reshaped = torch.tensor(self.conf.cost_weights_terminal, dtype=torch.float16).reshape(1, -1)
+        cost_weights_running_reshaped = torch.tensor(self.conf.cost_weights_running, dtype=torch.float16).reshape(1, -1)
 
         # Compute rewards
-        rewards_tf = self.env.reward_batch(term_batch.dot(cost_weights_terminal_reshaped) + (1-term_batch).dot(cost_weights_running_reshaped), state_batch.detach().numpy(), actions)
+        state_batch_np = state_batch.detach().cpu().numpy()
+        #temp1 = term_batch.dot(cost_weights_terminal_reshaped)
+        temp1 = torch.matmul(torch.tensor(term_batch, dtype=torch.float16), cost_weights_terminal_reshaped)
+        #temp2 = (1 - term_batch).dot(cost_weights_running_reshaped)
+        temp2 = torch.matmul(torch.tensor(1 - term_batch, dtype=torch.float16), cost_weights_running_reshaped)
+        rewards_tf = self.env.reward_batch(temp1 + temp2, state_batch_np, actions)
 
         # dr_da = gradient of reward r(s,a) w.r.t. policy's action a
         dr_da = torch.autograd.grad(outputs=rewards_tf, inputs=actions,

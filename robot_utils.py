@@ -348,9 +348,10 @@ class RobotSimulator:
     def step(self, u, dt=None):
         if dt is None:
             dt = self.dt
-
+        self.q = self.q.astype(np.float32)
+        self.v = self.v.astype(np.float32)
         # (Forces are directly in the world frame, and aba wants them in the end effector frame)
-        pin.computeAllTerms(self.model, self.data, self.q, self.v)
+        pin.computeAllTerms(self.model, self.data, self.q.astype(np.float32), self.v.astype(np.float32))
         pin.updateFramePlacements(self.model, self.data)
         M = self.data.M
         h = self.data.nle

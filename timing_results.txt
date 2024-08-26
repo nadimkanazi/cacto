@@ -1,0 +1,27 @@
+Time for env.reset_batch: 0.0001 seconds
+Time for compute_sample loop 34.7592 seconds
+Time for buffer.add: 0.0068 seconds
+Time for RLAC.learn_and_update: 26.8708 seconds
+Time for plot_Critic_Value_function: 0.4713 seconds
+Time for plot_traj_from_ICS: 4.6939 seconds
+Time for env.reset_batch: 0.0002 seconds
+Time for compute_sample loop 45.8893 seconds
+Time for buffer.add: 0.0069 seconds
+Time for RLAC.learn_and_update: 114.3548 seconds
+Time for plot_Critic_Value_function: 0.4627 seconds
+Time for plot_traj_from_ICS: 4.1701 seconds
+Time for env.reset_batch: 0.0002 seconds
+Time for compute_sample loop 43.3101 seconds
+Time for buffer.add: 0.0071 seconds
+Time for RLAC.learn_and_update: 196.7823 seconds
+Time for plot_Critic_Value_function: 0.4641 seconds
+Time for plot_traj_from_ICS: 4.5891 seconds
+Time for env.reset_batch: 0.0002 seconds
+Time for compute_sample loop 45.1747 seconds
+Time for buffer.add: 0.0066 seconds
+Time for RLAC.learn_and_update: 287.6976 seconds
+Time for plot_Critic_Value_function: 0.5004 seconds
+Time for plot_traj_from_ICS: 4.6921 seconds
+Time for env.reset_batch: 0.0002 seconds
+Time for compute_sample loop 50.1167 seconds
+Time for buffer.add: 0.0063 seconds
