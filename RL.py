@@ -2,6 +2,7 @@ import uuid
 import math
 import numpy as np
 import torch
+import time
 
 class RL_AC:
     def __init__(self, env, NN, conf, N_try):
@@ -119,30 +120,43 @@ class RL_AC:
             for target_param, param in zip(target_weights, weights):
                 target_param.data.copy_(param.data * tau + target_param.data * (1 - tau))
 
-    def learn_and_update(self, update_step_counter, buffer, ep):
+    def learn_and_update(self, update_step_counter, buffer, ep, file):
         #Tested Successfully# Although only for one iteration (?)
         ''' Sample experience and update buffer priorities and NNs '''
-        for _ in range(int(self.conf.UPDATE_LOOPS[ep])):
+        times_sample = np.zeros(int(self.conf.UPDATE_LOOPS[ep]))
+        times_update = np.zeros(int(self.conf.UPDATE_LOOPS[ep]))
+        times_update_target = np.zeros(int(self.conf.UPDATE_LOOPS[ep]))
+        for i in range(int(self.conf.UPDATE_LOOPS[ep])):
             # Sample batch of transitions from the buffer
+            st = time.time()
             state_batch, partial_reward_to_go_batch, state_next_rollout_batch, dVdx_batch, d_batch, term_batch, weights_batch, batch_idxes = buffer.sample()
-
+            et = time.time()
+            times_sample[i] = et-st
+            
             # Update both critic and actor
+            st = time.time()
             reward_to_go_batch, critic_value, target_critic_value = self.update(state_batch, state_next_rollout_batch, partial_reward_to_go_batch, dVdx_batch, d_batch, term_batch, weights_batch)
-
+            et = time.time()
+            times_update[i] = et-st
             # Update buffer priorities
             if self.conf.prioritized_replay_alpha != 0:
                 buffer.update_priorities(batch_idxes, reward_to_go_batch, critic_value, target_critic_value)
 
             # Update target critic
             if not self.conf.MC:
+                st = time.time()
                 self.update_target(self.target_critic.parameters(), self.critic_model.parameters())
+                et = time.time()
+                times_update_target[i] = et-st
 
             update_step_counter += 1
 
             # Plot rollouts and save the NNs every conf.save_interval training episodes
             if update_step_counter % self.conf.save_interval == 0:
                 self.RL_save_weights(update_step_counter)
-
+        file.write(f"Sample times - Avg: {np.mean(times_sample)}; Max:{np.max(times_sample)}; Min: {np.min(times_sample)}\n")
+        file.write(f"Update times - Avg: {np.mean(times_update)}; Max:{np.max(times_update)}; Min: {np.min(times_update)}\n")
+        file.write(f"Target Update times - Avg: {np.mean(times_update_target)}; Max:{np.max(times_update_target)}; Min: {np.min(times_update_target)}\n")
         return update_step_counter
     
     def RL_Solve(self, TO_controls, TO_states, TO_step_cost):
@@ -186,8 +200,8 @@ class RL_AC:
                     state_next_rollout_arr[i,:] = self.state_arr[final_lookahead_step+1,:]
             
             # Compute the partial and total cost to go
-            partial_reward_to_go_arr[i] = np.float16(sum(rwrd_arr[i:final_lookahead_step+1]))
-            total_reward_to_go_arr[i] = np.float16(sum(rwrd_arr[i:self.NSTEPS_SH+1]))
+            partial_reward_to_go_arr[i] = np.float32(sum(rwrd_arr[i:final_lookahead_step+1]))
+            total_reward_to_go_arr[i] = np.float32(sum(rwrd_arr[i:self.NSTEPS_SH+1]))
 
         return self.state_arr, partial_reward_to_go_arr, total_reward_to_go_arr, state_next_rollout_arr, done_arr, rwrd_arr, term_arr, ep_return, self.ee_pos_arr
     
@@ -232,7 +246,7 @@ class RL_AC:
             if ep == 0:
                 init_TO_controls[i,:] = np.zeros(self.conf.nb_action)
             else:
-                init_TO_controls[i,:] = self.NN.eval(self.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float16)).squeeze().detach().cpu().numpy()
+                init_TO_controls[i,:] = self.NN.eval(self.actor_model, torch.tensor(np.array([init_TO_states[i,:]]), dtype=torch.float32)).squeeze().detach().cpu().numpy()
             init_TO_states[i+1,:] = self.env.simulate(init_TO_states[i,:],init_TO_controls[i,:])
             if np.isnan(init_TO_states[i+1,:]).any():
                 success_init_flag = 0

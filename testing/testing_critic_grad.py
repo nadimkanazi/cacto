@@ -33,7 +33,7 @@ def eval_torch(NN, input):
     if not torch.is_tensor(input):
         if isinstance(input, list):
             input = np.array(input)
-        input = torch.tensor(input, dtype=torch.float16)
+        input = torch.tensor(input, dtype=torch.float32)
 
     if conf.NORMALIZE_INPUTS:
         input = normalize_tensor_torch(input, torch.tensor(conf.state_norm_arr))
@@ -42,7 +42,7 @@ def eval_torch(NN, input):
 def eval_tf(NN, input):
     ''' Compute the output of a NN given an input '''
     if not tf.is_tensor(input):
-        input = tf.convert_to_tensor(input, dtype=tf.float16)
+        input = tf.convert_to_tensor(input, dtype=tf.float32)
 
     if conf.NORMALIZE_INPUTS:
         input = normalize_tensor_tf(input, conf.state_norm_arr)
@@ -389,12 +389,12 @@ target_critic_torch = CriticModelTorch_elu()
 
 # Generate test data
 for i in range(50):
-    state_batch_np = np.random.rand(32, conf.nb_state).astype(np.float16)
-    state_next_rollout_batch_np = np.random.rand(32, conf.nb_state).astype(np.float16)
-    partial_reward_to_go_batch_np = np.random.rand(32, 1).astype(np.float16)
-    dVdx_batch_np = np.random.rand(32, conf.nb_state).astype(np.float16)
-    d_batch_np = np.random.rand(32, 1).astype(np.float16)
-    weights_batch_np = np.random.rand(32, 1).astype(np.float16)
+    state_batch_np = np.random.rand(32, conf.nb_state).astype(np.float32)
+    state_next_rollout_batch_np = np.random.rand(32, conf.nb_state).astype(np.float32)
+    partial_reward_to_go_batch_np = np.random.rand(32, 1).astype(np.float32)
+    dVdx_batch_np = np.random.rand(32, conf.nb_state).astype(np.float32)
+    d_batch_np = np.random.rand(32, 1).astype(np.float32)
+    weights_batch_np = np.random.rand(32, 1).astype(np.float32)
 
     state_batch_tf = tf.convert_to_tensor(state_batch_np)
     state_next_rollout_batch_tf = tf.convert_to_tensor(state_next_rollout_batch_np)

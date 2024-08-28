@@ -1,0 +1,13 @@
+-----------------------------------------------
+Time for env.reset_batch: 0.0002 seconds
+Time for compute_sample loop 34.3941 seconds
+Time for buffer.add: 0.0066 seconds
+Sample times - Avg: 0.0002767915725708008; Max:0.021530866622924805; Min: 0.00021338462829589844
+Update times - Avg: 0.02662862777709961; Max:0.17508888244628906; Min: 0.025804519653320312
+Target Update times - Avg: 0.0003534448146820068; Max:0.0013840198516845703; Min: 0.00033545494079589844
+Time for RLAC.learn_and_update: 27.2646 seconds
+Time for plot_Critic_Value_function: 0.4854 seconds
+Time for plot_traj_from_ICS: 0.1235 seconds
+-----------------------------------------------
+Time for env.reset_batch: 0.0001 seconds
+Time for compute_sample loop 0.0887 seconds

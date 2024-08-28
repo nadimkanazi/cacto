@@ -11,7 +11,7 @@ def array2tensor(array):
         array = np.array(array)
     elif torch.is_tensor(array):
         return array
-    return torch.unsqueeze(torch.tensor(array, dtype=torch.float16), 0)
+    return torch.unsqueeze(torch.tensor(array, dtype=torch.float32), 0)
 
 def de_normalize_tensor(state, state_norm_arr):
     ''' Retrieve state from normalized state - tensor '''
@@ -36,7 +36,7 @@ def normalize_tensor(state, state_norm_arr):
     ], dim=1)
     
     state_norm = state_norm_no_time * mask + state_norm_time * (1 - mask)
-    return state_norm.to(torch.float16)
+    return state_norm.to(torch.float32)
 
 def de_normalize(state, state_norm_arr):
     ''' Retrieve state from normalized state '''
@@ -58,7 +58,7 @@ def normalize(state, state_norm_arr):
 arr = np.random.rand(64,6)
 print(arr.shape)
 a = torch.tensor(arr)
-b = tf.Variable(arr, dtype=tf.float16)
+b = tf.Variable(arr, dtype=tf.float32)
 n = np.array([10, 3, 3.14, 10, 3.14/6, 5])
 #print(a)
 #print(b)

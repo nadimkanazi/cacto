@@ -90,7 +90,7 @@ update_step_counter_rec = None
 env_RL = 0
 URDF_FILENAME = double_integrator.urdf
 modelPath = /home/a2rlab/cacto/urdf/double_integrator.urdf
-robot = <robot_utils.RobotWrapper object at 0x76c93dd53e80>
+robot = <robot_utils.RobotWrapper object at 0x7e1809753fa0>
 nq = 2
 nv = 2
 nx = 4
@@ -100,7 +100,7 @@ cmodel = Nb joints = 3 (nq=2,nv=2)
   Joint 1 slider_x: parent=0
   Joint 2 slider_y: parent=1
 
-cdata = <pinocchio.pinocchio_pywrap_casadi.Data object at 0x64850a7381f0>
+cdata = <pinocchio.pinocchio_pywrap_casadi.Data object at 0x651a82058da0>
 end_effector_frame_id = EE
 dt = 0.05
 simulate_coulomb_friction = 0
@@ -109,7 +109,7 @@ tau_coulomb_max = [0. 0.]
 integration_scheme = E-Euler
 q_init = [-5  0]
 v_init = [0. 0.]
-simu = <robot_utils.RobotSimulator object at 0x76c91ddc53f0>
+simu = <robot_utils.RobotSimulator object at 0x7e1806499570>
 nb_state = 5
 x_min = [-inf -inf -inf -inf 0.05]
 x_init_min = [-15.   -15.    -6.    -6.     0.05]

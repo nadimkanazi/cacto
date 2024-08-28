@@ -195,6 +195,7 @@ if __name__ == '__main__':
                 st = time.time()
                 init_rand_state = env.reset_batch(conf.EP_UPDATE)
                 et = time.time()
+                file.write(f"-----------------------------------------------\n")
                 file.write(f"Time for env.reset_batch: {et - st:.4f} seconds\n")
                 
                 tmp = []
@@ -216,7 +217,7 @@ if __name__ == '__main__':
 
                 # Timing for updating NNs
                 st = time.time()
-                update_step_counter = RLAC.learn_and_update(update_step_counter, buffer, ep)
+                update_step_counter = RLAC.learn_and_update(update_step_counter, buffer, ep, file)
                 et = time.time()
                 file.write(f"Time for RLAC.learn_and_update: {et - st:.4f} seconds\n")
 
@@ -244,8 +245,9 @@ if __name__ == '__main__':
                 if update_step_counter > conf.NUPDATES:
                     break
 
-        time_end = time.time()
-        print('Elapsed time: ', time_end-time_start)
+            time_end = time.time()
+            file.write(f'Elapsed time: {time_end-time_start}')
+            print('Elapsed time: ', time_end-time_start)
 
         if conf.profile:
             profiler.disable()

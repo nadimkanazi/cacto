@@ -31,7 +31,7 @@ def eval_torch(NN, input):
     if not torch.is_tensor(input):
         if isinstance(input, list):
             input = np.array(input)
-        input = torch.tensor(input, dtype=torch.float16)
+        input = torch.tensor(input, dtype=torch.float32)
 
     if conf.NORMALIZE_INPUTS:
         input = normalize_tensor(input, torch.tensor(conf.state_norm_arr))

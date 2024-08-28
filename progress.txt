@@ -71,7 +71,10 @@ ideas:
 - use timeit not time.time()
 - debug main to see where warning is coming from with .clone()
 - dataloaders-style thing?
-- try changing to float16 and keep float16 for numpy
+- try changing to float32 and keep float32 for numpy
 - check .device for specific tensors used in computation to see if they can be sent to gpu manually before computations
+- why is timing_results.txt showing a speedup in the update and learn_and_update calls, but the speedup isn't propagating? 
+- use torchrl.data replay buffer?
 
 2 mins slower uwing reset_batch than regular reset?
+TODO 8/28: float32 for learning only and float32 for rest

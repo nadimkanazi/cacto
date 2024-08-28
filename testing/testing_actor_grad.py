@@ -167,13 +167,13 @@ class Envtf:
         ''' Simulate dynamics using tensors and compute its gradient w.r.t control. Batch-wise computation '''        
         state_next = np.array([self.simulate(s, a) for s, a in zip(state, action)])
 
-        return tf.convert_to_tensor(state_next, dtype=tf.float16)
+        return tf.convert_to_tensor(state_next, dtype=tf.float32)
         
     def derivative_batch(self, state, action):
         ''' Simulate dynamics using tensors and compute its gradient w.r.t control. Batch-wise computation '''        
         Fu = np.array([self.derivative(s, a) for s, a in zip(state, action)])
 
-        return tf.convert_to_tensor(Fu, dtype=tf.float16)
+        return tf.convert_to_tensor(Fu, dtype=tf.float32)
     
     def get_end_effector_position(self, state, recompute=True):
         ''' Compute end-effector position '''
@@ -266,7 +266,7 @@ class DoubleIntegratortf(Envtf):
         # Redefine action-related cost in tensorflow version
         u_cost = tf.reduce_sum((action**2 + self.conf.w_b*(action/self.conf.u_max)**10),axis=1) 
 
-        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float16)
+        r = self.scale*(- weights[:,6]*u_cost) + tf.convert_to_tensor(partial_reward, dtype=tf.float32)
 
         return tf.reshape(r, [r.shape[0], 1])
 
@@ -476,7 +476,7 @@ def eval_torch(NN, input):
     if not torch.is_tensor(input):
         if isinstance(input, list):
             input = np.array(input)
-        input = torch.tensor(input, dtype=torch.float16)
+        input = torch.tensor(input, dtype=torch.float32)
 
     if conf.NORMALIZE_INPUTS:
         input = normalize_tensor_torch(input, torch.tensor(conf.state_norm_arr))
@@ -485,7 +485,7 @@ def eval_torch(NN, input):
 def eval_tf(NN, input):
     ''' Compute the output of a NN given an input '''
     if not tf.is_tensor(input):
-        input = tf.convert_to_tensor(input, dtype=tf.float16)
+        input = tf.convert_to_tensor(input, dtype=tf.float32)
 
     if conf.NORMALIZE_INPUTS:
         input = normalize_tensor_tf(input, conf.state_norm_arr)
@@ -627,10 +627,10 @@ def compute_actor_grad_torch(actor_model, critic_model, state_batch, term_batch,
     act_np = actions.detach().numpy()
     state_next_tf, ds_next_da = env.simulate_batch(state_batch.detach().numpy(), act_np), env.derivative_batch(state_batch.detach().numpy(), act_np)
     
-    #state_next_tf = torch.tensor(state_next_tf, requires_grad=True, dtype=torch.float16)
-    state_next_tf = state_next_tf.clone().detach().to(dtype=torch.float16).requires_grad_(True)
-    #ds_next_da = torch.tensor(ds_next_da, requires_grad=True, dtype=torch.float16)
-    ds_next_da = ds_next_da.clone().detach().to(dtype=torch.float16).requires_grad_(True)
+    #state_next_tf = torch.tensor(state_next_tf, requires_grad=True, dtype=torch.float32)
+    state_next_tf = state_next_tf.clone().detach().to(dtype=torch.float32).requires_grad_(True)
+    #ds_next_da = torch.tensor(ds_next_da, requires_grad=True, dtype=torch.float32)
+    ds_next_da = ds_next_da.clone().detach().to(dtype=torch.float32).requires_grad_(True)
 
     # Compute critic value at the next state
     critic_value_next = eval_torch(critic_model, state_next_tf)
@@ -641,16 +641,16 @@ def compute_actor_grad_torch(actor_model, critic_model, state_batch, term_batch,
                                      grad_outputs=torch.ones_like(critic_value_next),
                                      create_graph=True)[0]
 
-    cost_weights_terminal_reshaped = torch.tensor(conf.cost_weights_terminal, dtype=torch.float16).reshape(1, -1)
-    cost_weights_running_reshaped = torch.tensor(conf.cost_weights_running, dtype=torch.float16).reshape(1, -1)
+    cost_weights_terminal_reshaped = torch.tensor(conf.cost_weights_terminal, dtype=torch.float32).reshape(1, -1)
+    cost_weights_running_reshaped = torch.tensor(conf.cost_weights_running, dtype=torch.float32).reshape(1, -1)
 
     # Compute rewards
-    #term_batch = torch.tensor(term_batch, dtype=torch.float16)
+    #term_batch = torch.tensor(term_batch, dtype=torch.float32)
     #reward_inputs = term_batch @ cost_weights_terminal_reshaped + (1 - term_batch) @ cost_weights_running_reshaped
     #reward_inputs = reward_inputs.numpy()
     #rewards_tf = env.reward_batch(reward_inputs, state_batch.detach().numpy(), actions.detach().numpy())
     #rewards_tf = env.reward_batch(reward_inputs.detach().numpy(), state_batch.detach().numpy(), actions)
-    #actions = torch.tensor(actions, requires_grad=True, dtype=torch.float16)
+    #actions = torch.tensor(actions, requires_grad=True, dtype=torch.float32)
     rewards_tf = env.reward_batch(term_batch.dot(cost_weights_terminal_reshaped) + (1-term_batch).dot(cost_weights_running_reshaped), state_batch.detach().numpy(), actions)
 
     # dr_da = gradient of reward r(s,a) w.r.t. policy's action a
@@ -751,11 +751,11 @@ critic_model_torch = create_critic_elu_torch()
 n_tests = 50
 # Generate test data
 for i in range(n_tests):
-    state_batch_np = np.random.rand(conf.BATCH_SIZE, conf.nb_state).astype(np.float16)
+    state_batch_np = np.random.rand(conf.BATCH_SIZE, conf.nb_state).astype(np.float32)
     state_batch_torch = torch.tensor(state_batch_np, requires_grad=True)
     state_batch_tf = tf.convert_to_tensor(state_batch_np)
 
-    term_batch_np = np.random.rand(conf.BATCH_SIZE, 1).astype(np.float16)
+    term_batch_np = np.random.rand(conf.BATCH_SIZE, 1).astype(np.float32)
     #term_batch_torch = torch.tensor(term_batch_np, requires_grad=True)
     #term_batch_tf = tf.convert_to_tensor(term_batch_np)
 
