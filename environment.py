@@ -451,8 +451,8 @@ class Car(Env):
         ''' Simulate dynamics '''
         state_next = np.zeros(self.nx+1)
 
-        state_next[0] = state[0] + self.conf.dt*state[3]*torch.cos(state[2]) + self.conf.dt**2*state[4]*torch.cos(state[2])/2
-        state_next[1] = state[1] + self.conf.dt*state[3]*torch.sin(state[2]) + self.conf.dt**2*state[4]*torch.sin(state[2])/2
+        state_next[0] = state[0] + self.conf.dt*state[3]*np.cos(state[2]) + self.conf.dt**2*state[4]*np.cos(state[2])/2
+        state_next[1] = state[1] + self.conf.dt*state[3]*np.sin(state[2]) + self.conf.dt**2*state[4]*np.sin(state[2])/2
         state_next[2] = state[2] + self.conf.dt*action[0]
         state_next[3] = state[3] + self.conf.dt*state[4]
         state_next[4] = state[4] + self.conf.dt*action[1]

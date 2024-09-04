@@ -192,10 +192,13 @@ if __name__ == '__main__':
         for ep in range(conf.NLOOPS): 
             # Generate and store conf.EP_UPDATE random-uniform ICS
             tmp = []
-            init_rand_state = env.reset_batch(conf.EP_UPDATE)
+            init_rand_state = []
+            for i in range(conf.EP_UPDATE):
+                init_rand_state.append(env.reset())
+            #init_rand_state = env.reset_batch(conf.EP_UPDATE)
 
             for i in range(conf.EP_UPDATE):
-                result = compute_sample((ep, init_rand_state[i, :]))
+                result = compute_sample((ep, init_rand_state[i]))
                 tmp.append(result)
 
             # Remove unsuccessful TO problems and update EP_UPDATE

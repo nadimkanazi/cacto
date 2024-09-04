@@ -197,7 +197,7 @@ class NN:
             input = torch.tensor(input, dtype=torch.float32)
 
         if self.conf.NORMALIZE_INPUTS:
-            input = normalize_tensor(input, torch.tensor(self.conf.state_norm_arr))
+            input = normalize_tensor(input, torch.tensor(self.conf.state_norm_arr)).to(torch.float32)
 
         return NN(input)
     
