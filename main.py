@@ -18,6 +18,8 @@ from NeuralNetwork import NN
 from replay_buffer import PrioritizedReplayBuffer, ReplayBuffer
 from TFNets import TFACNetworks
 
+from replay_gpu import GPUBuffer
+
 
 def parse_args():
     ''' Parse the arguments for CACTO training '''
@@ -130,7 +132,8 @@ if __name__ == '__main__':
         NN_inst = NN(env, conf)
         TrOp = TO_Casadi(env, conf, env_TO, w_S)
         plot_fun = PLOT(N_try, env, NN_inst, conf)
-        buffer = ReplayBuffer(conf) if conf.prioritized_replay_alpha == 0 else PrioritizedReplayBuffer(conf)
+        #buffer = ReplayBuffer(conf) if conf.prioritized_replay_alpha == 0 else PrioritizedReplayBuffer(conf)
+        buffer = GPUBuffer(conf, training_device) if GPU_flag else ReplayBuffer(conf) 
         RLAC = RL_AC(env, NN_inst, conf, N_try)
 
         ### TEMPORARILY USE THIS TO INITIALIZE WEIGHTS ###
@@ -188,8 +191,11 @@ if __name__ == '__main__':
 
         ### START TRAINING ###
         print(f'Training starting on device: {training_device}')
-        filename = f'timing_results_{time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())}_{training_device}.txt'
-        with open(filename, 'w') as file:
+        results_folder = 'timing_results'
+        os.makedirs('timing_results', exist_ok=True)
+        filename = f'timing_results_{system_id}_{time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())}_{training_device}.txt'
+        timing_path = os.path.join(results_folder, filename)
+        with open(timing_path, 'w') as file:
             for ep in range(conf.NLOOPS):
                 # Timing for generating and storing initial random states
                 st = time.time()

@@ -254,12 +254,16 @@ class NN:
 
         # Both take into account normalization, ds_next_da is the gradient of the dynamics w.r.t. policy actions (ds'_da)
         act_np = actions.detach().cpu().numpy()
-        #state_next_tf, ds_next_da = self.env.simulate_batch(state_batch.detach().cpu().numpy().astype(np.float32), act_np), self.env.derivative_batch(state_batch.detach().cpu().numpy().astype(np.float32), act_np)
-        state_next_tf, ds_next_da = self.env.simulate_batch(state_batch.detach().cpu().numpy(), act_np), self.env.derivative_batch(state_batch.detach().cpu().numpy(), act_np)
-        #state_next_tf, ds_next_da = self.env.simulate_batch(torch.tensor(state_batch), torch.tensor(act_np)), self.env.derivative_batch(torch.tensor(state_batch), torch.tensor(act_np))
         
-        state_next_tf = state_next_tf.clone().detach().to(dtype=torch.float32).requires_grad_(True)
-        ds_next_da = ds_next_da.clone().detach().to(dtype=torch.float32).requires_grad_(True)
+        state_next_tf, ds_next_da = self.env.simulate_batch(state_batch.detach().cpu().numpy(), act_np), self.env.derivative_batch(state_batch.detach().cpu().numpy(), act_np)
+        #state_next_tf = torch.rand(size=(128,5), requires_grad=True)
+        #ds_next_da = torch.rand(size=(128,5,2), requires_grad=True)
+        #print(state_next_tf.shape)
+        #print(ds_next_da.shape)
+        
+        
+        #state_next_tf = state_next_tf.clone().detach().to(dtype=torch.float32).requires_grad_(True)
+        #ds_next_da = ds_next_da.clone().detach().to(dtype=torch.float32).requires_grad_(True)
 
         # Compute critic value at the next state
         critic_value_next = self.eval(critic_model, state_next_tf)
@@ -274,12 +278,13 @@ class NN:
 
         # Compute rewards
         state_batch_np = state_batch.detach().cpu().numpy()
-        #temp1 = term_batch.dot(cost_weights_terminal_reshaped)
+        
         temp1 = torch.matmul(torch.tensor(term_batch, dtype=torch.float32), cost_weights_terminal_reshaped)
-        #temp2 = (1 - term_batch).dot(cost_weights_running_reshaped)
+        
         temp2 = torch.matmul(torch.tensor(1 - term_batch, dtype=torch.float32), cost_weights_running_reshaped)
+        
         rewards_tf = self.env.reward_batch(temp1 + temp2, state_batch_np, actions)
-
+        #print(rewards_tf.shape)
         # dr_da = gradient of reward r(s,a) w.r.t. policy's action a
         dr_da = torch.autograd.grad(outputs=rewards_tf, inputs=actions,
                                     grad_outputs=torch.ones_like(rewards_tf),

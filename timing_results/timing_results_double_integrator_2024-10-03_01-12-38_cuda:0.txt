@@ -1,0 +1,4 @@
+-----------------------------------------------
+Time for env.reset_batch: 0.0001 seconds
+Time for compute_sample loop 34.9843 seconds
+Time for buffer.add: 0.0236 seconds

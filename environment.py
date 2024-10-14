@@ -363,7 +363,7 @@ class DoubleIntegrator(Env):
     def reward_batch(self, weights, state, action):
         ''' Compute reward using tensors. Batch-wise computation '''
         partial_reward = torch.tensor([self.reward(w, s) for w, s in zip(weights, state)], dtype=torch.float32)
-
+        #partial_reward = torch.rand(size=(128,))
         # Redefine action-related cost
         
         act_sq = torch.pow(action,2)

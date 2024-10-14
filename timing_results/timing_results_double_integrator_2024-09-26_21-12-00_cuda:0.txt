@@ -1,0 +1,61 @@
+-----------------------------------------------
+Time for env.reset_batch: 0.0001 seconds
+Time for compute_sample loop 35.5463 seconds
+Time for buffer.add: 0.0070 seconds
+Sample times - Avg: 0.00028158259391784665; Max:0.01594090461730957; Min: 0.00023603439331054688
+Update times - Avg: 0.022798141956329347; Max:0.12169528007507324; Min: 0.02123403549194336
+Target Update times - Avg: 0.0003574943542480469; Max:0.001451253890991211; Min: 0.000331878662109375
+Time for RLAC.learn_and_update: 23.4434 seconds
+Time for plot_Critic_Value_function: 0.4622 seconds
+Time for plot_traj_from_ICS: 6.2328 seconds
+-----------------------------------------------
+Time for env.reset_batch: 0.0002 seconds
+Time for compute_sample loop 54.4547 seconds
+Time for buffer.add: 0.0071 seconds
+Sample times - Avg: 0.000277274489402771; Max:0.0006275177001953125; Min: 0.00025153160095214844
+Update times - Avg: 0.022830205023288728; Max:0.044608354568481445; Min: 0.02149200439453125
+Target Update times - Avg: 0.00035602593421936034; Max:0.001416921615600586; Min: 0.00033736228942871094
+Time for RLAC.learn_and_update: 93.8815 seconds
+Time for plot_Critic_Value_function: 0.5618 seconds
+Time for plot_traj_from_ICS: 6.9709 seconds
+-----------------------------------------------
+Time for env.reset_batch: 0.0002 seconds
+Time for compute_sample loop 57.9451 seconds
+Time for buffer.add: 0.0075 seconds
+Sample times - Avg: 0.0002792427199227469; Max:0.0007507801055908203; Min: 0.0002524852752685547
+Update times - Avg: 0.022784159524100168; Max:0.04394078254699707; Min: 0.021599531173706055
+Target Update times - Avg: 0.00035546701295035226; Max:0.0014247894287109375; Min: 0.0003342628479003906
+Time for RLAC.learn_and_update: 163.9780 seconds
+Time for plot_Critic_Value_function: 0.4648 seconds
+Time for plot_traj_from_ICS: 7.0653 seconds
+-----------------------------------------------
+Time for env.reset_batch: 0.0002 seconds
+Time for compute_sample loop 57.4927 seconds
+Time for buffer.add: 0.0066 seconds
+Sample times - Avg: 0.0002782278060913086; Max:0.0006670951843261719; Min: 0.00025200843811035156
+Update times - Avg: 0.02285445592403412; Max:0.04355931282043457; Min: 0.021603107452392578
+Target Update times - Avg: 0.00035338611602783206; Max:0.0015170574188232422; Min: 0.00033473968505859375
+Time for RLAC.learn_and_update: 234.9269 seconds
+Time for plot_Critic_Value_function: 0.4471 seconds
+Time for plot_traj_from_ICS: 6.4312 seconds
+-----------------------------------------------
+Time for env.reset_batch: 0.0001 seconds
+Time for compute_sample loop 66.3344 seconds
+Time for buffer.add: 0.0063 seconds
+Sample times - Avg: 0.0002842597778026874; Max:0.0007536411285400391; Min: 0.00025653839111328125
+Update times - Avg: 0.022742312101217417; Max:0.08327531814575195; Min: 0.021643877029418945
+Target Update times - Avg: 0.00035631550275362455; Max:0.0015716552734375; Min: 0.0003361701965332031
+Time for RLAC.learn_and_update: 304.0661 seconds
+Time for plot_Critic_Value_function: 0.4633 seconds
+Time for plot_traj_from_ICS: 7.7689 seconds
+-----------------------------------------------
+Time for env.reset_batch: 0.0002 seconds
+Time for compute_sample loop 63.7829 seconds
+Time for buffer.add: 0.0062 seconds
+Sample times - Avg: 0.0002792009115219116; Max:0.0007138252258300781; Min: 0.00025272369384765625
+Update times - Avg: 0.02268774288892746; Max:0.052198171615600586; Min: 0.021688461303710938
+Target Update times - Avg: 0.0003562553822994232; Max:0.0014777183532714844; Min: 0.0003380775451660156
+Time for RLAC.learn_and_update: 373.2787 seconds
+Time for plot_Critic_Value_function: 0.4646 seconds
+Time for plot_traj_from_ICS: 7.6257 seconds
+Elapsed time: 1574.1403396129608
