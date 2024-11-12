@@ -1,0 +1,172 @@
+# with tensor.item() uncommented:
+
+nvprof python test.py
+==5786== NVPROF is profiling process 5786, command: python test.py
+True
+Using /home/mecs4603/.cache/torch_extensions/py310_cu124 as PyTorch extensions root...
+Detected CUDA files, patching ldflags
+Emitting ninja build file /home/mecs4603/.cache/torch_extensions/py310_cu124/kernel/build.ninja...
+/home/mecs4603/cacto-env/lib/python3.10/site-packages/torch/utils/cpp_extension.py:1964: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+  warnings.warn(
+Building extension module kernel...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+ninja: no work to do.
+Loading extension module kernel...
+Original value: 0.0
+Memory address before kernel call: 126174556585984
+Modified value: 1.0
+Memory address after kernel call: 126174556585984
+==5786== Profiling application: python test.py
+==5786== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   61.77%  6.0480us         2  3.0240us  2.4640us  3.5840us  [CUDA memcpy DtoH]
+                   19.60%  1.9190us         1  1.9190us  1.9190us  1.9190us  void at::native::vectorized_elementwise_kernel<int=4, at::native::FillFunctor<float>, at::detail::Array<char*, int=1>>(int, float, at::native::FillFunctor<float>)
+                   18.63%  1.8240us         1  1.8240us  1.8240us  1.8240us  add_one_at_address(float*)
+      API calls:   92.98%  103.14ms         1  103.14ms  103.14ms  103.14ms  cudaDeviceGetStreamPriorityRange
+                    5.94%  6.5866ms         2  3.2933ms  93.552us  6.4931ms  cudaLaunchKernel
+                    0.51%  563.34us         1  563.34us  563.34us  563.34us  cudaHostAlloc
+                    0.23%  255.83us         1  255.83us  255.83us  255.83us  cudaGetDeviceProperties
+                    0.13%  147.49us       114  1.2930us      68ns  62.507us  cuDeviceGetAttribute
+                    0.12%  130.52us         1  130.52us  130.52us  130.52us  cudaMalloc
+                    0.02%  23.530us         2  11.765us  9.8520us  13.678us  cudaStreamSynchronize
+                    0.02%  21.046us        23     915ns     138ns  9.4490us  cudaGetDevice
+                    0.01%  14.599us         2  7.2990us  3.7430us  10.856us  cudaMemcpyAsync
+                    0.01%  12.966us         1  12.966us  12.966us  12.966us  cuDeviceGetName
+                    0.01%  7.0470us         1  7.0470us  7.0470us  7.0470us  cudaStreamIsCapturing
+                    0.01%  6.5820us         3  2.1940us     111ns  5.5670us  cudaGetDeviceCount
+                    0.01%  6.4100us         1  6.4100us  6.4100us  6.4100us  cuDeviceGetPCIBusId
+                    0.01%  6.2000us         1  6.2000us  6.2000us  6.2000us  cudaDeviceSynchronize
+                    0.00%  3.3280us        11     302ns      92ns  1.3110us  cuDevicePrimaryCtxGetState
+                    0.00%  1.2440us         2     622ns     539ns     705ns  cudaGetLastError
+                    0.00%  1.0690us         3     356ns     115ns     812ns  cuDeviceGetCount
+                    0.00%     397ns         2     198ns     118ns     279ns  cuDeviceGet
+                    0.00%     270ns         1     270ns     270ns     270ns  cuDeviceTotalMem
+                    0.00%     173ns         1     173ns     173ns     173ns  cuModuleGetLoadingMode
+                    0.00%     150ns         1     150ns     150ns     150ns  cuDeviceGetUuid
+                    
+                    
+                    
+# with tensor.item() commented:
+
+nvprof python test.py
+==5836== NVPROF is profiling process 5836, command: python test.py
+True
+Using /home/mecs4603/.cache/torch_extensions/py310_cu124 as PyTorch extensions root...
+Detected CUDA files, patching ldflags
+Emitting ninja build file /home/mecs4603/.cache/torch_extensions/py310_cu124/kernel/build.ninja...
+/home/mecs4603/cacto-env/lib/python3.10/site-packages/torch/utils/cpp_extension.py:1964: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+  warnings.warn(
+Building extension module kernel...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+ninja: no work to do.
+Loading extension module kernel...
+Memory address before kernel call: 128493234946048
+Memory address after kernel call: 128493234946048
+==5836== Profiling application: python test.py
+==5836== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   51.83%  2.2710us         1  2.2710us  2.2710us  2.2710us  void at::native::vectorized_elementwise_kernel<int=4, at::native::FillFunctor<float>, at::detail::Array<char*, int=1>>(int, float, at::native::FillFunctor<float>)
+                   48.17%  2.1110us         1  2.1110us  2.1110us  2.1110us  add_one_at_address(float*)
+      API calls:   94.76%  112.28ms         1  112.28ms  112.28ms  112.28ms  cudaDeviceGetStreamPriorityRange
+                    4.73%  5.6057ms         2  2.8029ms  89.572us  5.5161ms  cudaLaunchKernel
+                    0.23%  268.69us         1  268.69us  268.69us  268.69us  cudaGetDeviceProperties
+                    0.12%  144.30us       114  1.2650us      73ns  58.581us  cuDeviceGetAttribute
+                    0.11%  126.63us         1  126.63us  126.63us  126.63us  cudaMalloc
+                    0.01%  16.289us         1  16.289us  16.289us  16.289us  cuDeviceGetName
+                    0.01%  14.637us        14  1.0450us     145ns  5.0850us  cudaGetDevice
+                    0.01%  6.8090us         1  6.8090us  6.8090us  6.8090us  cudaStreamIsCapturing
+                    0.01%  6.8060us         1  6.8060us  6.8060us  6.8060us  cuDeviceGetPCIBusId
+                    0.01%  6.7390us         1  6.7390us  6.7390us  6.7390us  cudaDeviceSynchronize
+                    0.01%  6.0940us         3  2.0310us     167ns  4.9320us  cudaGetDeviceCount
+                    0.00%  2.8450us         7     406ns      91ns  1.1620us  cuDevicePrimaryCtxGetState
+                    0.00%  1.5210us         2     760ns     624ns     897ns  cudaGetLastError
+                    0.00%  1.1850us         3     395ns     125ns     914ns  cuDeviceGetCount
+                    0.00%     401ns         2     200ns     100ns     301ns  cuDeviceGet
+                    0.00%     218ns         1     218ns     218ns     218ns  cuDeviceTotalMem
+                    0.00%     215ns         1     215ns     215ns     215ns  cuModuleGetLoadingMode
+                    0.00%     137ns         1     137ns     137ns     137ns  cuDeviceGetUuid
+
+
+
+nvprof --print-gpu-trace python test.py
+==110502== NVPROF is profiling process 110502, command: python test.py
+Cuda is available: True
+Using /home/mecs4603/.cache/torch_extensions/py310_cu124 as PyTorch extensions root...
+Detected CUDA files, patching ldflags
+Emitting ninja build file /home/mecs4603/.cache/torch_extensions/py310_cu124/kernel/build.ninja...
+/home/mecs4603/cacto-env/lib/python3.10/site-packages/torch/utils/cpp_extension.py:1964: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+  warnings.warn(
+Building extension module kernel...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+ninja: no work to do.
+Loading extension module kernel...
+Original value: tensor([[0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.]], device='cuda:0')
+Memory address before kernel call: 139249309450240
+Modified value: tensor([[6., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.]], device='cuda:0')
+Memory address after kernel call: 139249309450240
+==110502== Profiling application: python test.py
+==110502== Profiling result:
+   Start  Duration            Grid Size      Block Size     Regs*    SSMem*    DSMem*      Size  Throughput  SrcMemType  DstMemType           Device   Context    Stream  Name
+390.13ms  2.3040us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::FillFunctor<float>, at::detail::Array<char*, int=1>>(int, float, at::native::FillFunctor<float>) [150]
+393.50ms  1.8570us              (1 1 1)       (128 1 1)        18        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::AbsFunctor<float>, at::detail::Array<char*, int=2>>(int, float, at::native::AbsFunctor<float>) [169]
+408.17ms  1.8560us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::AUnaryFunctor<float, float, bool, at::native::_GLOBAL__N__28ce311f_18_CompareEQKernel_cu_d8008c96::CompareEqFunctor<float>>, at::detail::Array<char*, int=2>>(int, float, float) [179]
+408.25ms  1.8880us              (1 1 1)       (128 1 1)        22        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::BinaryFunctor<float, float, bool, at::native::_GLOBAL__N__28ce311f_18_CompareEQKernel_cu_d8008c96::CompareEqFunctor<float>>, at::detail::Array<char*, int=3>>(int, float, float) [189]
+415.61ms  1.6320us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::BinaryFunctor<bool, bool, bool, at::native::binary_internal::MulFunctor<bool>>, at::detail::Array<char*, int=3>>(int, bool, bool) [199]
+415.71ms  1.4400us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::AUnaryFunctor<float, float, bool, at::native::_GLOBAL__N__28ce311f_18_CompareEQKernel_cu_d8008c96::CompareEqFunctor<float>>, at::detail::Array<char*, int=2>>(int, float, float) [209]
+426.27ms  1.7910us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::BinaryFunctor<bool, bool, bool, at::native::BitwiseAndFunctor<bool>>, at::detail::Array<char*, int=3>>(int, bool, bool) [219]
+442.72ms  2.1440us              (1 1 1)       (256 1 1)        24       44B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at_cuda_detail::cub::DeviceReduceSingleTileKernel<at_cuda_detail::cub::DeviceReducePolicy<int, unsigned int, cuda::std::__4::plus<void>>::Policy600, at_cuda_detail::cub::TransformInputIterator<bool, at::native::_GLOBAL__N__e625f313_10_Nonzero_cu_cba1aaa0::NonZeroOp<bool>, bool const *, long>, int*, unsigned int, cuda::std::__4::plus<void>, int, int>(unsigned int, void, cuda::std::__4::plus<void>, at_cuda_detail::cub::DeviceReducePolicy<int, unsigned int, cuda::std::__4::plus<void>>::Policy600, bool) [254]
+443.65ms  3.5840us                    -               -         -         -         -        4B  1.0644MB/s      Device      Pinned  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+443.69ms  1.4090us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at_cuda_detail::cub::DeviceCompactInitKernel<at_cuda_detail::cub::ScanTileState<int, bool=1>, int*>(int, int, bool=1) [287]
+443.70ms  2.1120us              (1 1 1)       (128 1 1)        44  5.0000KB        0B         -           -           -           -  NVIDIA GeForce          1         7  void at_cuda_detail::cub::DeviceSelectSweepKernel<at_cuda_detail::cub::detail::device_select_policy_hub<long, bool, int, bool=0, bool=0>::Policy900, at_cuda_detail::cub::CountingInputIterator<long, long>, at_cuda_detail::cub::TransformInputIterator<bool, at::native::_GLOBAL__N__e625f313_10_Nonzero_cu_cba1aaa0::NonZeroOp<bool>, bool const *, long>, long*, int*, at_cuda_detail::cub::ScanTileState<int, bool=1>, at_cuda_detail::cub::NullType, at_cuda_detail::cub::NullType, int, bool=0>(bool, int, bool=0, bool=0, at_cuda_detail::cub::detail::device_select_policy_hub<long, bool, int, bool=0, bool=0>::Policy900, long, long, at_cuda_detail::cub::CountingInputIterator<long, long>, int) [294]
+443.94ms  2.9120us                    -               -         -         -         -       12B  3.9300MB/s      Device    Pageable  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+443.99ms  2.6560us                    -               -         -         -         -       12B  4.3088MB/s      Device    Pageable  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+444.02ms  2.4960us                    -               -         -         -         -       12B  4.5850MB/s      Device    Pageable  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+444.21ms  1.3760us              (1 1 1)         (1 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  add_one_at_address(float*) [334]
+456.15ms  1.8240us              (1 1 1)       (128 1 1)        18        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::CUDAFunctorOnSelf_add<float>, at::detail::Array<char*, int=2>>(int, float, at::native::CUDAFunctorOnSelf_add<float>) [341]
+456.27ms  1.6320us              (1 1 1)         (1 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  add_one_at_address(float*) [348]
+456.32ms  1.3760us              (1 1 1)       (128 1 1)        18        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::CUDAFunctorOnSelf_add<float>, at::detail::Array<char*, int=2>>(int, float, at::native::CUDAFunctorOnSelf_add<float>) [355]
+456.33ms  1.3440us              (1 1 1)         (1 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  add_one_at_address(float*) [362]
+456.35ms  1.3440us              (1 1 1)       (128 1 1)        18        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::CUDAFunctorOnSelf_add<float>, at::detail::Array<char*, int=2>>(int, float, at::native::CUDAFunctorOnSelf_add<float>) [369]
+456.53ms  1.4400us              (1 1 1)       (128 1 1)        18        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::AbsFunctor<float>, at::detail::Array<char*, int=2>>(int, float, at::native::AbsFunctor<float>) [389]
+456.55ms  1.5360us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::AUnaryFunctor<float, float, bool, at::native::_GLOBAL__N__28ce311f_18_CompareEQKernel_cu_d8008c96::CompareEqFunctor<float>>, at::detail::Array<char*, int=2>>(int, float, float) [399]
+456.57ms  1.4720us              (1 1 1)       (128 1 1)        22        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::BinaryFunctor<float, float, bool, at::native::_GLOBAL__N__28ce311f_18_CompareEQKernel_cu_d8008c96::CompareEqFunctor<float>>, at::detail::Array<char*, int=3>>(int, float, float) [409]
+456.58ms  1.6320us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::BinaryFunctor<bool, bool, bool, at::native::binary_internal::MulFunctor<bool>>, at::detail::Array<char*, int=3>>(int, bool, bool) [419]
+456.59ms  1.3760us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::AUnaryFunctor<float, float, bool, at::native::_GLOBAL__N__28ce311f_18_CompareEQKernel_cu_d8008c96::CompareEqFunctor<float>>, at::detail::Array<char*, int=2>>(int, float, float) [429]
+456.61ms  1.6320us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::BinaryFunctor<bool, bool, bool, at::native::BitwiseAndFunctor<bool>>, at::detail::Array<char*, int=3>>(int, bool, bool) [439]
+456.64ms  1.8240us              (1 1 1)       (256 1 1)        24       44B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at_cuda_detail::cub::DeviceReduceSingleTileKernel<at_cuda_detail::cub::DeviceReducePolicy<int, unsigned int, cuda::std::__4::plus<void>>::Policy600, at_cuda_detail::cub::TransformInputIterator<bool, at::native::_GLOBAL__N__e625f313_10_Nonzero_cu_cba1aaa0::NonZeroOp<bool>, bool const *, long>, int*, unsigned int, cuda::std::__4::plus<void>, int, int>(unsigned int, void, cuda::std::__4::plus<void>, at_cuda_detail::cub::DeviceReducePolicy<int, unsigned int, cuda::std::__4::plus<void>>::Policy600, bool) [468]
+456.65ms  2.7840us                    -               -         -         -         -        4B  1.3702MB/s      Device      Pinned  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+456.68ms  1.1850us              (1 1 1)       (128 1 1)        16        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at_cuda_detail::cub::DeviceCompactInitKernel<at_cuda_detail::cub::ScanTileState<int, bool=1>, int*>(int, int, bool=1) [499]
+456.69ms  2.0790us              (1 1 1)       (128 1 1)        44  5.0000KB        0B         -           -           -           -  NVIDIA GeForce          1         7  void at_cuda_detail::cub::DeviceSelectSweepKernel<at_cuda_detail::cub::detail::device_select_policy_hub<long, bool, int, bool=0, bool=0>::Policy900, at_cuda_detail::cub::CountingInputIterator<long, long>, at_cuda_detail::cub::TransformInputIterator<bool, at::native::_GLOBAL__N__e625f313_10_Nonzero_cu_cba1aaa0::NonZeroOp<bool>, bool const *, long>, long*, int*, at_cuda_detail::cub::ScanTileState<int, bool=1>, at_cuda_detail::cub::NullType, at_cuda_detail::cub::NullType, int, bool=0>(bool, int, bool=0, bool=0, at_cuda_detail::cub::detail::device_select_policy_hub<long, bool, int, bool=0, bool=0>::Policy900, long, long, at_cuda_detail::cub::CountingInputIterator<long, long>, int) [506]
+476.56ms  3.1680us              (1 1 1)       (128 1 1)        40        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  _ZN2at6native24index_elementwise_kernelILi128ELi4EZNS0_16gpu_index_kernelIZNS0_17index_kernel_implINS0_10OpaqueTypeILi4EEEEEvRNS_18TensorIteratorBaseEN3c108ArrayRefIlEESA_EUlPcPKclE_EEvS7_SA_SA_RKT_EUliE_EEvlT1_ [520]
+476.69ms  1.8560us              (1 1 1)       (128 1 1)        18        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::AbsFunctor<float>, at::detail::Array<char*, int=2>>(int, float, at::native::AbsFunctor<float>) [539]
+486.90ms  1.9200us              (1 1 1)       (128 1 1)        42        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  _ZN2at6native27unrolled_elementwise_kernelIZZZNS0_23direct_copy_kernel_cudaERNS_18TensorIteratorBaseEENKUlvE1_clEvENKUlvE4_clEvEUldE_NS_6detail5ArrayIPcLi2EEE23TrivialOffsetCalculatorILi1EjESC_NS0_6memory12LoadWithCastILi1EEENSD_13StoreWithCastILi1EEEEEviT_T0_T1_T2_T3_T4_ [552]
+498.27ms  4.1280us              (1 1 1)         (1 1 1)        32       16B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::reduce_kernel<int=512, int=1, at::native::ReduceOp<double, at::native::func_wrapper_t<double, at::native::MinNanFunctor<double>>, unsigned int, double, int=4>>(double) [570]
+509.61ms  4.1280us              (1 1 1)         (1 1 1)        32       16B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::reduce_kernel<int=512, int=1, at::native::ReduceOp<double, at::native::func_wrapper_t<double, at::native::MaxNanFunctor<double>>, unsigned int, double, int=4>>(double) [587]
+518.66ms  1.9520us              (1 1 1)       (128 1 1)        20        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  _ZN2at6native29vectorized_elementwise_kernelILi4EZZZNS0_16ceil_kernel_cudaERNS_18TensorIteratorBaseEENKUlvE_clEvENKUlvE0_clEvEUlfE_NS_6detail5ArrayIPcLi2EEEEEviT0_T1_ [597]
+518.73ms  1.5680us              (1 1 1)       (128 1 1)        22        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::BinaryFunctor<float, float, bool, at::native::_GLOBAL__N__28ce311f_18_CompareEQKernel_cu_d8008c96::CompareEqFunctor<float>>, at::detail::Array<char*, int=3>>(int, float, float) [607]
+518.78ms  2.9450us                    -               -         -         -         -        1B  331.60KB/s      Device      Pinned  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+527.06ms  2.0160us              (1 1 1)       (128 1 1)        44        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  void at::native::vectorized_elementwise_kernel<int=4, at::native::BinaryFunctor<double, double, double, at::native::binary_internal::DivFunctor<double>>, at::detail::Array<char*, int=3>>(int, double, double) [629]
+534.21ms  2.1120us              (1 1 1)       (128 1 1)        18        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  _ZN2at6native29vectorized_elementwise_kernelILi4EZNS0_21compare_scalar_kernelIdEEvRNS_18TensorIteratorBaseENS0_50_GLOBAL__N__e50ef81d_17_CompareKernels_cu_8f1b29aa6OpTypeET_EUldE_NS_6detail5ArrayIPcLi2EEEEEviT0_T1_ [639]
+534.27ms  2.9120us                    -               -         -         -         -        1B  335.36KB/s      Device      Pinned  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+534.32ms  1.4720us              (1 1 1)       (128 1 1)        18        0B        0B         -           -           -           -  NVIDIA GeForce          1         7  _ZN2at6native29vectorized_elementwise_kernelILi4EZNS0_21compare_scalar_kernelIdEEvRNS_18TensorIteratorBaseENS0_50_GLOBAL__N__e50ef81d_17_CompareKernels_cu_8f1b29aa6OpTypeET_EUldE_NS_6detail5ArrayIPcLi2EEEEEviT0_T1_ [655]
+534.33ms  2.4640us                    -               -         -         -         -        1B  396.33KB/s      Device      Pinned  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+534.39ms  2.6240us                    -               -         -         -         -        4B  1.4538MB/s      Device      Pinned  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+534.47ms  2.8160us                    -               -         -         -         -       12B  4.0640MB/s      Device    Pageable  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+534.51ms  2.7850us                    -               -         -         -         -       12B  4.1092MB/s      Device    Pageable  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+534.53ms  2.4960us                    -               -         -         -         -       12B  4.5850MB/s      Device    Pageable  NVIDIA GeForce          1         7  [CUDA memcpy DtoH]
+
+Regs: Number of registers used per CUDA thread. This number includes registers used internally by the CUDA driver and/or tools and can be more than what the compiler shows.
+SSMem: Static shared memory allocated per CUDA block.
+DSMem: Dynamic shared memory allocated per CUDA block.
+SrcMemType: The type of source memory accessed by memory operation/copy
+DstMemType: The type of destination memory accessed by memory operation/copy
+(cacto-env) mecs4603@mecs4603-IdeaPad-Flex-5-16IRU8:~/cacto/cudatrial$ nvprof --print-gpu-trace python test.py
+
+
