@@ -1,0 +1,3 @@
+[submodule "submodules/GATO"]
+	path = submodules/GATO
+	url = https://github.com/A2R-Lab/GATO.git
